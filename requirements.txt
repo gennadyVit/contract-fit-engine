@@ -1,0 +1,7 @@
+apache-airflow
+dbt-snowflake
+snowflake-connector-python
+streamlit
+requests
+python-dotenv
+pandas
