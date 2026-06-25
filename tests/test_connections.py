@@ -1,28 +1,18 @@
 import os
+import sys
 import requests
-import snowflake.connector
-from cryptography.hazmat.primitives import serialization
 from dotenv import load_dotenv
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from ingestion.snowflake_conn import get_connection
+
 load_dotenv()
-
-
-def load_private_key():
-    with open("rsa_key.p8", "rb") as f:
-        return serialization.load_pem_private_key(f.read(), password=None)
 
 
 def test_snowflake():
     print("\n--- Testing Snowflake Connection ---")
     try:
-        conn = snowflake.connector.connect(
-            account=os.getenv("SNOWFLAKE_ACCOUNT"),
-            user=os.getenv("SNOWFLAKE_USER"),
-            private_key=load_private_key(),
-            warehouse=os.getenv("SNOWFLAKE_WAREHOUSE"),
-            database=os.getenv("SNOWFLAKE_DATABASE"),
-            schema=os.getenv("SNOWFLAKE_SCHEMA"),
-        )
+        conn = get_connection()
         cursor = conn.cursor()
         cursor.execute(f"USE WAREHOUSE {os.getenv('SNOWFLAKE_WAREHOUSE')}")
         cursor.execute("SELECT CURRENT_VERSION()")

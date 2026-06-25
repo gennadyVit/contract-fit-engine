@@ -1,25 +1,12 @@
 import os
 import requests
-import snowflake.connector
-from cryptography.hazmat.primitives import serialization
 from dotenv import load_dotenv
+
+from snowflake_conn import get_connection
 
 load_dotenv()
 
 SAM_URL = "https://api.sam.gov/opportunities/v2/search"
-
-
-def get_snowflake_conn():
-    with open("rsa_key.p8", "rb") as f:
-        private_key = serialization.load_pem_private_key(f.read(), password=None)
-    return snowflake.connector.connect(
-        account=os.getenv("SNOWFLAKE_ACCOUNT"),
-        user=os.getenv("SNOWFLAKE_USER"),
-        private_key=private_key,
-        warehouse=os.getenv("SNOWFLAKE_WAREHOUSE"),
-        database=os.getenv("SNOWFLAKE_DATABASE"),
-        schema=os.getenv("SNOWFLAKE_SCHEMA"),
-    )
 
 
 def create_staging_table(cursor):
@@ -91,7 +78,7 @@ if __name__ == "__main__":
     print(f"Fetched {len(records)} records")
 
     print("Connecting to Snowflake...")
-    conn = get_snowflake_conn()
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(f"USE WAREHOUSE {os.getenv('SNOWFLAKE_WAREHOUSE')}")
 
