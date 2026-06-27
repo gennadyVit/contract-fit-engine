@@ -10,6 +10,11 @@ cleaned as (
         INTERNAL_ID,
         RECIPIENT_NAME,
         AWARD_AMOUNT,
+        CASE
+            WHEN AWARD_AMOUNT >= 1000000 THEN 'Large'
+            WHEN AWARD_AMOUNT >= 100000  THEN 'Medium'
+            ELSE 'Small'
+        END as AWARD_SIZE_CATEGORY,
         DESCRIPTION,
         AWARDING_AGENCY,
         AWARDING_SUB_AGENCY,
