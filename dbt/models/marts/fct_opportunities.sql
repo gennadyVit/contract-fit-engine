@@ -48,3 +48,4 @@ cleaned as (
 )
 
 select * from cleaned
+qualify ROW_NUMBER() over (partition by NOTICE_ID order by LOADED_AT desc) = 1

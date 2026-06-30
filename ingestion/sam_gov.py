@@ -108,6 +108,9 @@ if __name__ == "__main__":
     print("Creating staging table if not exists...")
     create_staging_table(cursor)
 
+    print("Truncating staging table...")
+    cursor.execute("TRUNCATE TABLE GOVCONTRACT.RAW.STG_SAM_OPPORTUNITIES")
+
     print("Loading records into Snowflake...")
     count = load_to_snowflake(records, cursor)
     conn.commit()
