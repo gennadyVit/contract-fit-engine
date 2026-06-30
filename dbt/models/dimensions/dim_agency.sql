@@ -3,7 +3,7 @@
 with sam_agencies as (
     select distinct
         SPLIT_PART(AGENCY, '.', 1) as AGENCY_NAME,
-        SUB_AGENCY as SUB_AGENCY_NAME
+        SPLIT_PART(AGENCY, '.', 2) as SUB_AGENCY_NAME
     from GOVCONTRACT.RAW.STG_SAM_OPPORTUNITIES
     where AGENCY is not null
 ),
