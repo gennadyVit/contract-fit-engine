@@ -1,4 +1,5 @@
 import os
+import time
 import requests
 from dotenv import load_dotenv
 
@@ -30,16 +31,34 @@ def create_staging_table(cursor):
     """)
 
 
-def fetch_opportunities(posted_from="01/01/2025", posted_to="12/31/2025", limit=100):
-    params = {
-        "api_key": os.getenv("SAM_GOV_API_KEY"),
-        "limit": limit,
-        "postedFrom": posted_from,
-        "postedTo": posted_to,
-    }
-    response = requests.get(SAM_URL, params=params)
-    response.raise_for_status()
-    return response.json().get("opportunitiesData", [])
+def fetch_opportunities(posted_from="01/01/2025", posted_to="12/31/2025"):
+    records = []
+    offset = 0
+    limit = 100
+
+    while True:
+        params = {
+            "api_key": os.getenv("SAM_GOV_API_KEY"),
+            "limit": limit,
+            "offset": offset,
+            "postedFrom": posted_from,
+            "postedTo": posted_to,
+        }
+        response = requests.get(SAM_URL, params=params)
+        response.raise_for_status()
+        data = response.json()
+        batch = data.get("opportunitiesData", [])
+        if not batch:
+            break
+        records.extend(batch)
+        total = data.get("totalRecords", 0)
+        print(f"  Fetched {len(records)}/{total}...")
+        if len(records) >= total:
+            break
+        offset += limit
+        time.sleep(0.3)
+
+    return records
 
 
 def load_to_snowflake(records, cursor):
@@ -73,8 +92,8 @@ def load_to_snowflake(records, cursor):
 
 
 if __name__ == "__main__":
-    print("Fetching SAM.gov opportunities...")
-    records = fetch_opportunities(limit=100)
+    print("Fetching SAM.gov opportunities (all, 2025)...")
+    records = fetch_opportunities()
     print(f"Fetched {len(records)} records")
 
     print("Connecting to Snowflake...")

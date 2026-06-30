@@ -23,7 +23,6 @@ FIELDS = [
     "Place of Performance State Code",
 ]
 
-NAICS_CODES = ["541511", "541512", "541519"]
 ALL_MARKET_CAP = 7000
 SMALL_BUSINESS_CAP = 7000
 PER_PAGE = 100
@@ -53,16 +52,17 @@ def create_staging_table(cursor):
     """)
 
 
-def fetch_awards_for_naics(naics_code: str, max_records: int, small_business_only: bool) -> list[dict]:
+def fetch_pull(total_cap: int, small_business_only: bool) -> list[dict]:
     url = f"{BASE_URL}/search/spending_by_award/"
     records = []
     page = 1
+    label = "small-business" if small_business_only else "all-market"
 
-    while len(records) < max_records:
+    print(f"  [{label}] Fetching up to {total_cap} records (2024-2025, all NAICS)...")
+    while len(records) < total_cap:
         filters = {
             "award_type_codes": ["A", "B", "C", "D"],
-            "time_period": [{"start_date": "2023-01-01", "end_date": "2025-12-31"}],
-            "naics_codes": [naics_code],
+            "time_period": [{"start_date": "2024-01-01", "end_date": "2025-12-31"}],
         }
         if small_business_only:
             filters["recipient_type_names"] = ["small_business"]
@@ -82,29 +82,16 @@ def fetch_awards_for_naics(naics_code: str, max_records: int, small_business_onl
         if not results:
             break
 
-        for r in results:
-            r["_naics_code"] = naics_code
         records.extend(results)
 
         if not data.get("page_metadata", {}).get("hasNext"):
             break
 
         page += 1
-        time.sleep(0.2)  # be polite to the API
+        time.sleep(0.2)
 
-    return records[:max_records]
-
-
-def fetch_pull(total_cap: int, small_business_only: bool) -> list[dict]:
-    per_naics_cap = total_cap // len(NAICS_CODES)
-    all_records = []
-    label = "small-business" if small_business_only else "all-market"
-    for naics_code in NAICS_CODES:
-        print(f"  [{label}] Fetching NAICS {naics_code} (up to {per_naics_cap} records)...")
-        records = fetch_awards_for_naics(naics_code, per_naics_cap, small_business_only)
-        print(f"    Got {len(records)} records")
-        all_records.extend(records)
-    return all_records
+    print(f"    Got {len(records)} records")
+    return records[:total_cap]
 
 
 def fetch_all_awards() -> list[dict]:
@@ -146,7 +133,7 @@ def load_to_snowflake(records, cursor):
             r.get("Awarding Agency"),
             r.get("Awarding Sub Agency"),
             r.get("Contract Award Type"),
-            r.get("_naics_code"),
+            None,  # NAICS_CODE not returned by bulk search endpoint
             r.get("Place of Performance Country Code"),
             r.get("Place of Performance State Code"),
             True if source_sb else None,  # tri-state: True if confirmed SB, else unknown (NULL)
@@ -166,7 +153,7 @@ def load_to_snowflake(records, cursor):
 
 
 if __name__ == "__main__":
-    print(f"Fetching USASpending awards (NAICS {NAICS_CODES})...")
+    print(f"Fetching USASpending awards (all NAICS, 2024-2025)...")
     print(f"  All-market pull cap: {ALL_MARKET_CAP}, Small-business pull cap: {SMALL_BUSINESS_CAP}")
     records = fetch_all_awards()
     sb_count = sum(1 for r in records if r.get("_source_small_business_pull"))
