@@ -45,6 +45,10 @@ def fetch_opportunities(posted_from="01/01/2025", posted_to="12/31/2025"):
             "postedTo": posted_to,
         }
         response = requests.get(SAM_URL, params=params)
+        if response.status_code == 429:
+            print("  Rate limited — waiting 60s...")
+            time.sleep(60)
+            continue
         response.raise_for_status()
         data = response.json()
         batch = data.get("opportunitiesData", [])
@@ -56,7 +60,7 @@ def fetch_opportunities(posted_from="01/01/2025", posted_to="12/31/2025"):
         if len(records) >= total:
             break
         offset += limit
-        time.sleep(0.3)
+        time.sleep(1.0)
 
     return records
 
