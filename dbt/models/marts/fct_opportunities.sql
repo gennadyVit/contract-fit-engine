@@ -44,7 +44,7 @@ cleaned as (
         on a.AGENCY_NAME    = SPLIT_PART(s.AGENCY, '.', 1)
         and a.SUB_AGENCY_NAME = SPLIT_PART(s.AGENCY, '.', 2)
     where s.ACTIVE = 'Yes'
-      and s.TYPE in ('Solicitation', 'Presolicitation', 'Sources Sought')
+      and s.TYPE in ('Solicitation', 'Presolicitation', 'Sources Sought', 'Combined Synopsis/Solicitation')
       and DATEDIFF('day', CURRENT_DATE(), s.RESPONSE_DEADLINE) >= 0
 )
 

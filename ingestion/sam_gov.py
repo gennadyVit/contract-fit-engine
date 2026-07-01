@@ -31,10 +31,11 @@ def create_staging_table(cursor):
     """)
 
 
-def fetch_opportunities(posted_from="04/01/2026", posted_to="06/30/2026"):
-    records = []
+def fetch_and_load(cursor, posted_from="04/01/2026", posted_to="06/30/2026"):
+    """Fetch and load page by page so rate limits don't lose already-fetched data."""
     offset = 0
     limit = 100
+    total_loaded = 0
 
     while True:
         params = {
@@ -46,7 +47,7 @@ def fetch_opportunities(posted_from="04/01/2026", posted_to="06/30/2026"):
         }
         response = requests.get(SAM_URL, params=params)
         if response.status_code == 429:
-            print("  Rate limited — waiting 60s...")
+            print(f"  Rate limited at {total_loaded} records — waiting 60s...")
             time.sleep(60)
             continue
         response.raise_for_status()
@@ -54,15 +55,16 @@ def fetch_opportunities(posted_from="04/01/2026", posted_to="06/30/2026"):
         batch = data.get("opportunitiesData", [])
         if not batch:
             break
-        records.extend(batch)
+        count = load_to_snowflake(batch, cursor)
+        total_loaded += count
         total = data.get("totalRecords", 0)
-        print(f"  Fetched {len(records)}/{total}...")
-        if len(records) >= total:
+        print(f"  Loaded {total_loaded}/{total}...")
+        if total_loaded >= total:
             break
         offset += limit
         time.sleep(1.0)
 
-    return records
+    return total_loaded
 
 
 def load_to_snowflake(records, cursor):
@@ -96,10 +98,6 @@ def load_to_snowflake(records, cursor):
 
 
 if __name__ == "__main__":
-    print("Fetching SAM.gov opportunities (all, 2025)...")
-    records = fetch_opportunities()
-    print(f"Fetched {len(records)} records")
-
     print("Connecting to Snowflake...")
     conn = get_connection()
     cursor = conn.cursor()
@@ -110,9 +108,10 @@ if __name__ == "__main__":
 
     print("Truncating staging table...")
     cursor.execute("TRUNCATE TABLE GOVCONTRACT.RAW.STG_SAM_OPPORTUNITIES")
+    conn.commit()
 
-    print("Loading records into Snowflake...")
-    count = load_to_snowflake(records, cursor)
+    print("Fetching and loading SAM.gov opportunities page by page (Apr-Jun 2026)...")
+    count = fetch_and_load(cursor)
     conn.commit()
     conn.close()
 
