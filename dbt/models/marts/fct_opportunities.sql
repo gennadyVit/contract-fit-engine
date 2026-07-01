@@ -45,6 +45,7 @@ cleaned as (
         and a.SUB_AGENCY_NAME = SPLIT_PART(s.AGENCY, '.', 2)
     where s.ACTIVE = 'Yes'
       and s.TYPE in ('Solicitation', 'Presolicitation', 'Sources Sought')
+      and DATEDIFF('day', CURRENT_DATE(), s.RESPONSE_DEADLINE) >= 0
 )
 
 select * from cleaned
