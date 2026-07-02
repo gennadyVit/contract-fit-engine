@@ -57,6 +57,7 @@ select
     o.NOTICE_ID,
     o.TITLE,
     o.SOLICITATION_NUM,
+    o.DESCRIPTION,
     o.UI_LINK,
 
     -- agency

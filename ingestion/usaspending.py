@@ -28,29 +28,6 @@ SMALL_BUSINESS_CAP = 7000
 PER_PAGE = 100
 
 
-def create_staging_table(cursor):
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS GOVCONTRACT.RAW.STG_USASPENDING_AWARDS (
-            AWARD_ID                       VARCHAR,
-            INTERNAL_ID                    VARCHAR,
-            RECIPIENT_NAME                 VARCHAR,
-            AWARD_AMOUNT                   NUMBER(38, 2),
-            DESCRIPTION                    VARCHAR,
-            START_DATE                     DATE,
-            END_DATE                       DATE,
-            AWARDING_AGENCY                VARCHAR,
-            AWARDING_SUB_AGENCY            VARCHAR,
-            AWARD_TYPE                     VARCHAR,
-            NAICS_CODE                     VARCHAR,
-            POP_COUNTRY_CODE               VARCHAR,
-            POP_STATE_CODE                 VARCHAR,
-            IS_SMALL_BUSINESS_AWARD        BOOLEAN,
-            SOURCE_ALL_MARKET_PULL         BOOLEAN,
-            SOURCE_SMALL_BUSINESS_PULL     BOOLEAN,
-            LOADED_AT                      TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
-        )
-    """)
-
 
 def fetch_pull(total_cap: int, small_business_only: bool) -> list[dict]:
     url = f"{BASE_URL}/search/spending_by_award/"
@@ -164,8 +141,6 @@ if __name__ == "__main__":
     cursor = conn.cursor()
     cursor.execute(f"USE WAREHOUSE {os.getenv('SNOWFLAKE_WAREHOUSE')}")
 
-    print("Creating staging table if not exists...")
-    create_staging_table(cursor)
 
     print("Loading records into Snowflake...")
     count = load_to_snowflake(records, cursor)

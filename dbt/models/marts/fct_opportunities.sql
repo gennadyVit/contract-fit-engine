@@ -37,6 +37,7 @@ cleaned as (
         s.OFFICE_CITY,
         s.OFFICE_STATE,
         s.UI_LINK,
+        s.DESCRIPTION,
         s.LOADED_AT
 
     from source s
