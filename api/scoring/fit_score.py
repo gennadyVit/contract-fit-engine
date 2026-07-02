@@ -42,7 +42,7 @@ def score_opportunity(opportunity: dict, profile: dict, capability_similarity: f
         "strategic_fit": _score_strategic_fit(opportunity, profile),
     }
 
-    raw_score = sum(score * WEIGHTS[name] for name, score in components.items())
+    raw_score = sum(float(score) * WEIGHTS[name] for name, score in components.items())
     final_score = min(int(raw_score), score_cap)
     confidence = _compute_confidence(opportunity, profile, components)
 
