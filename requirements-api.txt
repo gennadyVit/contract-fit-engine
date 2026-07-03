@@ -5,3 +5,4 @@ snowflake-connector-python==3.10.0
 python-dotenv==1.0.1
 requests==2.32.3
 openai==1.30.0
+numpy
