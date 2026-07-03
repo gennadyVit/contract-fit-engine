@@ -1,30 +1,36 @@
 import os
-import numpy as np
+import math
 
-# Stub flag — set AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY in .env to enable
 AZURE_ENABLED = bool(os.getenv("AZURE_OPENAI_ENDPOINT") and os.getenv("AZURE_OPENAI_API_KEY"))
+EMBEDDING_MODEL = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT", "text-embedding-3-small")
+_client = None
 
-if AZURE_ENABLED:
-    from openai import AzureOpenAI
-    _client = AzureOpenAI(
-        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-        api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-        api_version="2024-02-01",
-    )
-    EMBEDDING_MODEL = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT", "text-embedding-3-small")
+
+def _get_client():
+    global _client
+    if _client is None and AZURE_ENABLED:
+        from openai import AzureOpenAI
+        _client = AzureOpenAI(
+            azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+            api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+            api_version="2024-02-01",
+        )
+    return _client
 
 
 def get_embedding(text: str) -> list[float] | None:
-    """Returns embedding vector or None if Azure not configured."""
-    if not AZURE_ENABLED:
+    client = _get_client()
+    if client is None:
         return None
-    response = _client.embeddings.create(input=text, model=EMBEDDING_MODEL)
+    response = client.embeddings.create(input=text, model=EMBEDDING_MODEL)
     return response.data[0].embedding
 
 
 def cosine_similarity(a: list[float], b: list[float]) -> float:
-    a, b = np.array(a), np.array(b)
-    return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+    dot = sum(x * y for x, y in zip(a, b))
+    norm_a = math.sqrt(sum(x * x for x in a))
+    norm_b = math.sqrt(sum(x * x for x in b))
+    return dot / (norm_a * norm_b) if norm_a and norm_b else 0.0
 
 
 def compute_capability_similarity(opportunity: dict, profile: dict) -> float | None:
@@ -32,7 +38,7 @@ def compute_capability_similarity(opportunity: dict, profile: dict) -> float | N
     Returns cosine similarity (0-1) between opportunity text and company profile,
     or None if Azure OpenAI is not configured (fit_score.py will use stub value).
     """
-    if not AZURE_ENABLED:
+    if not AZURE_ENABLED or _get_client() is None:
         return None
 
     opp_text = f"{opportunity.get('TITLE', '')} {opportunity.get('DESCRIPTION', '')}".strip()
