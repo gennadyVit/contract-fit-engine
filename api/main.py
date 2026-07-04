@@ -65,7 +65,7 @@ def score_opportunities(profile: CompanyProfile, limit: int = 50, min_score: int
                 NAICS_UNIQUE_VENDORS, NAICS_SB_WIN_RATE_PCT,
                 NAICS_AVG_CONTRACT_LENGTH_DAYS
             FROM GOVCONTRACT.MARTS.MART_OPPORTUNITY_FEATURES
-            LIMIT {limit * 3}
+            LIMIT 10
         """)
         columns = [col[0] for col in cursor.description]
         opportunities = [dict(zip(columns, row)) for row in cursor.fetchall()]
