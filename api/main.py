@@ -54,7 +54,7 @@ def score_opportunities(profile: CompanyProfile, limit: int = 50, min_score: int
     try:
         conn = _get_snowflake_connection()
         cursor = conn.cursor()
-        cursor.execute(f"""
+        cursor.execute("""
             SELECT
                 NOTICE_ID, TITLE, AGENCY_NAME, SUB_AGENCY_NAME,
                 NAICS_CODE, NAICS_DESCRIPTION, NOTICE_TYPE, SET_ASIDE,
@@ -63,9 +63,10 @@ def score_opportunities(profile: CompanyProfile, limit: int = 50, min_score: int
                 NAICS_MEDIAN_AWARD_AMOUNT, NAICS_AVG_AWARD_AMOUNT,
                 NAICS_P25_AWARD_AMOUNT, NAICS_P75_AWARD_AMOUNT,
                 NAICS_UNIQUE_VENDORS, NAICS_SB_WIN_RATE_PCT,
-                NAICS_AVG_CONTRACT_LENGTH_DAYS
+                NAICS_AVG_CONTRACT_LENGTH_DAYS,
+                EMBEDDING
             FROM GOVCONTRACT.MARTS.MART_OPPORTUNITY_FEATURES
-            LIMIT 10
+            WHERE DAYS_UNTIL_DEADLINE >= 0
         """)
         columns = [col[0] for col in cursor.description]
         opportunities = [dict(zip(columns, row)) for row in cursor.fetchall()]
@@ -73,11 +74,25 @@ def score_opportunities(profile: CompanyProfile, limit: int = 50, min_score: int
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Snowflake error: {str(e)}")
 
+    # Compute profile embedding once; reuse across all opportunities
     profile_embedding = get_profile_embedding(profile_dict)
 
     results = []
     for opp in opportunities:
-        similarity = compute_capability_similarity(opp, profile_dict, profile_embedding=profile_embedding)
+        # Use stored embedding if available — avoids an Azure OpenAI call per opportunity
+        stored_embedding = opp.pop("EMBEDDING", None)
+        if stored_embedding is not None:
+            try:
+                stored_embedding = [float(x) for x in stored_embedding]
+            except (TypeError, ValueError):
+                stored_embedding = None
+
+        from api.scoring.embeddings import cosine_similarity
+        if stored_embedding and profile_embedding:
+            similarity = cosine_similarity(stored_embedding, profile_embedding)
+        else:
+            similarity = compute_capability_similarity(opp, profile_dict, profile_embedding=profile_embedding)
+
         result = score_opportunity(opp, profile_dict, capability_similarity=similarity)
         if result.overall_fit_score >= min_score:
             results.append(result)
