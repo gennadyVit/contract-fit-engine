@@ -44,4 +44,5 @@ jobs:
           az containerapp update \
             --name govcontract-airflow \
             --resource-group govcontract-rg \
-            --image govcontractacr.azurecr.io/govcontract-airflow:latest
+            --image govcontractacr.azurecr.io/govcontract-airflow:latest \
+            --subscription 3c84e9ef-03eb-452b-901b-9804d18933f8
