@@ -11,16 +11,11 @@ RUN python3 -m venv /opt/dbt-venv && \
 RUN echo '#!/bin/bash\n/opt/dbt-venv/bin/dbt "$@"' > /usr/local/bin/dbt && \
     chmod +x /usr/local/bin/dbt
 
-USER airflow
+# Copy entrypoint
+COPY --chown=airflow:root airflow/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-# Set static admin credentials so password doesn't regenerate on each restart
-ENV _AIRFLOW_WWW_USER_CREATE=true
-ENV _AIRFLOW_WWW_USER_USERNAME=admin
-ENV _AIRFLOW_WWW_USER_PASSWORD=GovContract2026!
-ENV _AIRFLOW_WWW_USER_FIRSTNAME=Admin
-ENV _AIRFLOW_WWW_USER_LASTNAME=User
-ENV _AIRFLOW_WWW_USER_EMAIL=yezavit@yahoo.com
-ENV _AIRFLOW_WWW_USER_ROLE=Admin
+USER airflow
 
 # Copy project code into image
 COPY --chown=airflow:root ingestion/ /opt/airflow/govcontract/ingestion/
@@ -36,3 +31,5 @@ RUN pip install --no-cache-dir \
     openai>=1.50.0 \
     requests==2.32.3 \
     python-dotenv==1.0.1
+
+ENTRYPOINT ["/entrypoint.sh"]
