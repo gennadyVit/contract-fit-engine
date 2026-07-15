@@ -1,133 +1,130 @@
-# govcontract-radar
+# Contract Fit Engine
 
-Automated first-pass capture analyst for federal contract opportunities.
+**AI-powered platform that helps small businesses find and prioritize federal contract opportunities using fit scoring and semantic search.**
 
-Monitors SAM.gov daily, reads full solicitation text, scores each opportunity against a company profile, suppresses bad matches, and delivers a ranked digest with pursuit artifacts — replacing the manual work a capture analyst does before a bid decision.
+Small businesses competing for federal contracts face thousands of SAM.gov listings with no easy way to know which ones are worth pursuing. Contract Fit Engine ingests public procurement data, scores every opportunity against a company profile, and surfaces the best bids through a searchable dashboard — so you spend time on the right opportunities, not reading through irrelevant ones.
 
-## Status
+---
 
-Week 2 complete. Scoring engine live. Target completion: July 2026.
+## Features
 
-## What it does
+- **Daily ingestion** — pulls active contract opportunities from the SAM.gov public API via Apache Airflow
+- **Data warehouse** — raw opportunity data lands in Snowflake, transformed into analytics-ready models using dbt
+- **Fit scoring** — weighted scoring engine computes a FIT_SCORE (0–100) across 5 dimensions and assigns a PURSUE, WATCH, or NO_BID decision for each opportunity
+- **Semantic search** — Azure AI Search indexes opportunity descriptions using vector embeddings for hybrid keyword + vector search
+- **Dashboard** — Streamlit app with opportunity feed, filters, and direct links to SAM.gov
 
-```
-Daily pipeline
-  ↓
-Ingest new SAM.gov opportunities
-  ↓
-Run dbt models (Snowflake star schema)
-  ↓
-Extract requirements from solicitation text (RAG)
-  ↓
-Score against company profile
-  ↓
-Suppress disqualified opportunities
-  ↓
-Generate pursuit artifacts (bid/no-bid memo, compliance checklist)
-  ↓
-Email digest — top 5 opportunities only
-  ↓
-User reviews full memo in Streamlit
-```
+---
 
-## What makes it more than a mailing list
+## Scoring Model
 
-**1. Reads the solicitation, not just metadata**
+Each opportunity is scored across 5 weighted components:
 
-A standard alert says: `New opportunity: Cloud Support Services | NAICS: 541512 | Agency: DOT`
+| Component | Weight | What it measures |
+|---|---|---|
+| Capability similarity | 35% | Cosine similarity between opportunity and company profile embeddings |
+| Past performance | 25% | NAICS code and agency match against company history |
+| Contract size fit | 15% | Whether contract value falls within company's comfortable range |
+| Competition favorability | 15% | Small business win rate for this NAICS + set-aside match |
+| Strategic alignment | 10% | Keyword overlap with company focus areas |
 
-This system says:
-```
-Requires:
-- 3 similar federal past performance examples
-- ISO 9001 certification
-- On-site support in Cambridge, MA
-- Response due in 11 days
-- Technical volume limited to 20 pages
-```
+Hard gates cap scores for eligibility mismatches (wrong set-aside, clearance level, or contract 10x above company max).
 
-**2. Scores against a real company profile**
+**Decision thresholds:** ≥70 → PURSUE · 50–69 → WATCH · <50 → NO_BID
 
-Not just "NAICS matches" — but:
-```
-Fit score: 74
+---
 
-Matched:
-- Azure migration experience
-- Small-business eligibility
-- Similar contract size
-
-Missing:
-- ISO 9001
-- No explicit DOT past performance
-- Deadline is short
-```
-
-**3. Detects hidden disqualifiers**
-
-- Requires facility clearance
-- Requires incumbent transition plan
-- Requires past performance within last 3 years
-- Set-aside does not match company certifications
-- Deadline too soon given company bandwidth
-
-**4. Generates pursuit artifacts**
-
-- Bid/no-bid recommendation memo
-- Compliance checklist
-- Missing requirements list
-- Questions for contracting officer
-- Capture action items
-
-**5. Shows you what it rejected and why**
-
-```
-143 opportunities reviewed
-9 included in digest
-134 excluded
-
-Top exclusion reasons:
-- 51 did not match core capabilities
-- 37 deadline too soon
-- 22 required certification missing
-- 14 wrong set-aside
-- 10 contract size outside target range
-```
-
-## Fit score formula
-
-```
-0.35 × capability_similarity      (Azure OpenAI embeddings)
-0.25 × past_performance_match
-0.15 × contract_size_fit
-0.15 × competition_score
-0.10 × strategic_fit
-```
-
-Hard gates are caps, not zeros — a disqualified opportunity surfaces with a warning rather than disappearing.
-
-## Stack
+## Tech Stack
 
 | Layer | Technology |
 |---|---|
-| Data warehouse | Snowflake on Azure |
-| Transformations | dbt |
-| Orchestration | Apache Airflow on Azure Container Apps |
-| Scoring API | FastAPI |
-| Embeddings | Azure OpenAI text-embedding-3-small |
-| Narrative generation | Azure OpenAI GPT-4o |
-| RAG / document search | Azure AI Search |
-| UI | Streamlit |
-| Ingestion | Python (SAM.gov + USASpending.gov) |
+| Orchestration | Apache Airflow |
+| Data warehouse | Snowflake |
+| Data modeling | dbt |
+| Embeddings | Azure OpenAI (text-embedding-3-small) |
+| Vector search | Azure AI Search |
+| Dashboard | Streamlit |
+| Infrastructure | Azure Container Apps |
+| Data source | SAM.gov public API |
 
-## Weekly build plan
+---
 
-| Week | Scope | Status |
-|---|---|---|
-| 1 | Data foundation — Snowflake schema, dbt models, ingestion | ✅ Done |
-| 2 | Scoring engine — FastAPI, hard gates, weighted score, embeddings | ✅ Done |
-| 3 | RAG layer — solicitation text extraction, Azure AI Search, Streamlit UI | In progress |
-| 4 | Artifacts + pipeline — GPT-4o memos, Airflow orchestration, email digest | Planned |
+## Architecture
+
+```
+SAM.gov API
+    ↓ (Airflow DAG — daily)
+Snowflake RAW layer
+    ↓ (dbt)
+Snowflake MARTS layer (opportunity features, scoring inputs)
+    ↓ (Azure OpenAI)
+Vector embeddings → stored in Snowflake
+    ↓ (scoring engine)
+AGENT_DECISIONS (FIT_SCORE, DECISION per opportunity)
+    ↓ (Azure AI Search indexer)
+Search index (hybrid keyword + vector)
+    ↓
+Streamlit dashboard
+```
+
+---
+
+## Running Locally
+
+**Prerequisites:** Python 3.11+, Snowflake account, Azure OpenAI, Azure AI Search
+
+```bash
+git clone https://github.com/gennadyVit/contract-fit-engine.git
+cd contract-fit-engine
+pip install -r requirements.txt
+```
+
+Copy `.env.example` to `.env` and fill in your credentials:
+
+```
+SNOWFLAKE_ACCOUNT=
+SNOWFLAKE_USER=
+SNOWFLAKE_PRIVATE_KEY=
+SNOWFLAKE_WAREHOUSE=
+SNOWFLAKE_DATABASE=
+SNOWFLAKE_SCHEMA=
+AZURE_OPENAI_ENDPOINT=
+AZURE_OPENAI_API_KEY=
+AZURE_OPENAI_EMBEDDING_DEPLOYMENT=
+AZURE_SEARCH_ENDPOINT=
+AZURE_SEARCH_KEY=
+```
+
+Run the dashboard:
+
+```bash
+cd dashboard
+streamlit run app.py
+```
+
+Run the scoring engine:
+
+```bash
+cd ingestion
+python scoring.py technova
+```
+
+---
+
+## Scoring Model Documentation
+
+[View the full scoring methodology →](https://gennadyvit.github.io/contract-fit-engine/scoring-model.html)
+
+---
+
+## Current State
+
+- 2,000 SAM.gov opportunities ingested
+- 1,387 scored against company profile (PURSUE: 2, WATCH: 24, NO_BID: 1,361)
+- Azure AI Search index live with 1,387 documents
+- Streamlit dashboard running, Azure deployment in progress
+
+---
 
 ## License
 
