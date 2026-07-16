@@ -467,129 +467,94 @@ elif st.session_state.page == "find":
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# HOW IT WORKS / TECH PAGE
+# HOW IT WORKS / TECH PAGE — Option C layout
 # ════════════════════════════════════════════════════════════════════════════
 elif st.session_state.page == "tech":
     nav()
 
     st.markdown('<div class="section-label">Under the Hood</div>', unsafe_allow_html=True)
     st.markdown('<div class="section-title">How Contract Fit Engine works</div>', unsafe_allow_html=True)
-    st.markdown('<div class="section-sub">A fully automated data pipeline that ingests, transforms, scores, and indexes federal contract opportunities weekly.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-sub">From raw SAM.gov data to a ranked, scored opportunity feed — fully automated, weekly refresh.</div>', unsafe_allow_html=True)
 
-    c1, c2 = st.columns([1, 1])
+    # ── Pipeline: horizontal cards ────────────────────────────────────────────
+    st.markdown("---")
+    st.markdown("#### Pipeline")
+    p1, arr1, p2, arr2, p3, arr3, p4, arr4, p5, arr5, p6 = st.columns([4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4])
+    arrow = "<div style='text-align:center; font-size:20px; color:#94a3b8; padding-top:24px;'>→</div>"
 
-    with c1:
-        st.markdown("#### Pipeline")
-        st.markdown("""
-        <div class="step">
-          <div class="step-num">1</div>
-          <div class="step-content">
-            <h4>Ingest from SAM.gov</h4>
-            <p>Apache Airflow pulls active federal contract opportunities daily from the SAM.gov public API. Raw data lands in Snowflake.</p>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-num">2</div>
-          <div class="step-content">
-            <h4>Model with dbt</h4>
-            <p>dbt transforms raw opportunity data into clean, analytics-ready models — opportunities, agencies, NAICS categories, and scoring features.</p>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-num">3</div>
-          <div class="step-content">
-            <h4>Embed with Azure OpenAI</h4>
-            <p>Each opportunity description is converted into a 1,536-dimension vector embedding using Azure OpenAI's text-embedding-3-small model.</p>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-num">4</div>
-          <div class="step-content">
-            <h4>Score for fit</h4>
-            <p>A conversational AI agent extracts your company profile from natural language, then a weighted scoring engine computes a FIT_SCORE (0–100) across 5 dimensions. As win/loss outcome data is captured from USASpending.gov, this rule-based engine will be replaced by an ML model trained on real award data.</p>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-num">5</div>
-          <div class="step-content">
-            <h4>Index for search</h4>
-            <p>Azure AI Search indexes all opportunities with their embeddings, enabling hybrid keyword + vector search across the full dataset.</p>
-          </div>
-        </div>
-        """, unsafe_allow_html=True)
+    def pipe_card(col, num, title, subtitle):
+        with col:
+            st.markdown(f"""
+            <div style="border:1px solid #e2e8f0; border-radius:10px; padding:16px 14px; text-align:center; background:white; height:110px;">
+              <div style="font-size:22px; font-weight:700; color:#1d4ed8;">{num}</div>
+              <div style="font-size:13px; font-weight:600; color:#0f172a; margin:4px 0 2px;">{title}</div>
+              <div style="font-size:11px; color:#64748b;">{subtitle}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
-    with c2:
-        st.markdown("#### Scoring Model")
-        st.markdown("""
-        | Component | Weight | What it measures |
-        |---|---|---|
-        | Capability similarity | **35%** | Cosine similarity between opportunity and company profile embeddings |
-        | Past performance | **25%** | NAICS code and past agency match |
-        | Contract size fit | **15%** | Value within company's comfortable range |
-        | Competition | **15%** | Small biz win rate + set-aside match |
-        | Strategic alignment | **10%** | Keyword overlap with company focus |
-        """)
+    pipe_card(p1, "1", "Ingest", "SAM.gov API via Airflow")
+    arr1.markdown(arrow, unsafe_allow_html=True)
+    pipe_card(p2, "2", "Model", "dbt + Snowflake")
+    arr2.markdown(arrow, unsafe_allow_html=True)
+    pipe_card(p3, "3", "Embed", "Azure OpenAI vectors")
+    arr3.markdown(arrow, unsafe_allow_html=True)
+    pipe_card(p4, "4", "Score", "AI agent + fit engine")
+    arr4.markdown(arrow, unsafe_allow_html=True)
+    pipe_card(p5, "5", "Index", "Azure AI Search")
+    arr5.markdown(arrow, unsafe_allow_html=True)
+    pipe_card(p6, "6", "Surface", "Streamlit dashboard")
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("**Hard gates** cap scores for eligibility mismatches:")
-        st.markdown("""
-        - Set-aside mismatch → max score **40**
-        - Clearance required → max score **50**
-        - Contract 10× above max → max score **65**
-        """)
+    # ── Scoring dimensions: card grid ─────────────────────────────────────────
+    st.markdown("---")
+    st.markdown("#### Scoring Dimensions")
+    st.caption("Each opportunity scored 0–100 across 5 components. Hard gates cap scores for eligibility mismatches.")
 
-        st.markdown("<br>", unsafe_allow_html=True)
+    d1, d2, d3, d4, d5 = st.columns(5)
+    def score_card(col, pct, title, desc, color="#1d4ed8"):
+        with col:
+            st.markdown(f"""
+            <div style="border:1px solid #e2e8f0; border-radius:10px; padding:16px 12px; background:white; height:150px;">
+              <div style="font-size:24px; font-weight:700; color:{color};">{pct}</div>
+              <div style="font-size:13px; font-weight:600; color:#0f172a; margin:6px 0 4px;">{title}</div>
+              <div style="font-size:11px; color:#64748b; line-height:1.4;">{desc}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    score_card(d1, "35%", "Capability match", "Vector similarity between opportunity and company profile")
+    score_card(d2, "25%", "Past performance", "NAICS code and past agency alignment")
+    score_card(d3, "15%", "Contract size", "Value within company's comfortable range")
+    score_card(d4, "15%", "Competition", "Small biz win rate + set-aside match")
+    score_card(d5, "10%", "Strategic fit", "Keyword overlap with company focus areas")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    t1, t2, t3 = st.columns(3)
+    with t1:
+        st.markdown("**Hard gates**")
+        st.markdown("- Set-aside mismatch → max **40**\n- Clearance required → max **50**\n- Contract 10× above max → max **65**")
+    with t2:
         st.markdown("**Decision thresholds**")
-        st.markdown("🟢 **PURSUE** — score ≥ 70  \n🟡 **WATCH** — score 50–69  \n🔴 **NO BID** — score < 50")
+        st.markdown("🟢 PURSUE — score ≥ 70\n\n🟡 WATCH — score 50–69\n\n🔴 NO BID — score < 50")
+    with t3:
+        st.markdown("**Roadmap: ML scoring**")
+        st.markdown("Current rule-based weights will be replaced by an ML classifier trained on USASpending.gov award outcomes and user bid results (won/lost).")
+        st.markdown('<span class="tech-pill">XGBoost</span><span class="tech-pill">Feature store</span><span class="tech-pill">USASpending.gov</span>', unsafe_allow_html=True)
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown('[View full scoring methodology →](https://gennadyvit.github.io/contract-fit-engine/scoring-model.html)')
+    st.markdown("[View full scoring methodology →](https://gennadyvit.github.io/contract-fit-engine/scoring-model.html)")
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("**Roadmap: ML-based scoring**")
-        st.markdown("""
-        The current rule-based engine uses fixed weights validated against domain knowledge.
-        As award outcome data is ingested from USASpending.gov — matching solicitations to
-        actual winners — it will be used as training data for an ML classifier that learns
-        which opportunity features actually predict wins for a given company profile.
-        User bid outcomes (won / lost) captured through the app will supplement this signal.
-        """)
-        st.markdown('<div class="tech-category" style="margin-top:8px;">Planned ML stack</div>', unsafe_allow_html=True)
-        st.markdown("""
-        <span class="tech-pill">USASpending.gov awards data</span>
-        <span class="tech-pill">Win/loss outcome labels</span>
-        <span class="tech-pill">scikit-learn / XGBoost</span>
-        <span class="tech-pill">Feature store in Snowflake</span>
-        """, unsafe_allow_html=True)
-
+    # ── Tech stack: categorized grid ──────────────────────────────────────────
     st.markdown("---")
     st.markdown("#### Tech Stack")
 
-    st.markdown('<div class="tech-category">Data & Pipeline</div>', unsafe_allow_html=True)
-    st.markdown("""
-    <span class="tech-pill">Apache Airflow</span>
-    <span class="tech-pill">Snowflake</span>
-    <span class="tech-pill">dbt</span>
-    <span class="tech-pill">Python</span>
-    <span class="tech-pill">SAM.gov API</span>
-    """, unsafe_allow_html=True)
-
-    st.markdown('<div class="tech-category">AI & Search</div>', unsafe_allow_html=True)
-    st.markdown("""
-    <span class="tech-pill">Azure OpenAI</span>
-    <span class="tech-pill">text-embedding-3-small</span>
-    <span class="tech-pill">Azure AI Search</span>
-    <span class="tech-pill">Vector embeddings</span>
-    <span class="tech-pill">Hybrid search</span>
-    """, unsafe_allow_html=True)
-
-    st.markdown('<div class="tech-category">Infrastructure</div>', unsafe_allow_html=True)
-    st.markdown("""
-    <span class="tech-pill">Azure Container Apps</span>
-    <span class="tech-pill">Azure Container Registry</span>
-    <span class="tech-pill">Streamlit</span>
-    <span class="tech-pill">Docker</span>
-    """, unsafe_allow_html=True)
+    ts1, ts2, ts3 = st.columns(3)
+    with ts1:
+        st.markdown('<div class="tech-category">Data & Pipeline</div>', unsafe_allow_html=True)
+        st.markdown('<span class="tech-pill">Apache Airflow</span><span class="tech-pill">Snowflake</span><span class="tech-pill">dbt</span><span class="tech-pill">Python</span><span class="tech-pill">SAM.gov API</span>', unsafe_allow_html=True)
+    with ts2:
+        st.markdown('<div class="tech-category">AI & Search</div>', unsafe_allow_html=True)
+        st.markdown('<span class="tech-pill">Azure OpenAI GPT-4o</span><span class="tech-pill">text-embedding-3-small</span><span class="tech-pill">Azure AI Search</span><span class="tech-pill">RAG</span><span class="tech-pill">Function calling</span>', unsafe_allow_html=True)
+    with ts3:
+        st.markdown('<div class="tech-category">Infrastructure</div>', unsafe_allow_html=True)
+        st.markdown('<span class="tech-pill">Azure Container Apps</span><span class="tech-pill">Azure Container Registry</span><span class="tech-pill">Streamlit</span><span class="tech-pill">Docker</span>', unsafe_allow_html=True)
 
     st.markdown("<br><br>", unsafe_allow_html=True)
     if st.button("→ Try It Now", type="primary"):
