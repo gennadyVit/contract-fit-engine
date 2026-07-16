@@ -8,6 +8,8 @@ RUN pip install --no-cache-dir -r requirements-streamlit.txt
 COPY ingestion/snowflake_conn.py ingestion/
 COPY ingestion/keyvault.py ingestion/
 COPY ingestion/search_index.py ingestion/
+COPY ingestion/scoring.py ingestion/
+COPY ingestion/agent.py ingestion/
 COPY dashboard/app.py .
 
 ENV PYTHONPATH=/app/ingestion

@@ -161,6 +161,12 @@ if "results_df" not in st.session_state:
     st.session_state.results_df = None
 if "profile_used" not in st.session_state:
     st.session_state.profile_used = {}
+if "chat_messages" not in st.session_state:
+    st.session_state.chat_messages = []
+if "chat_profile" not in st.session_state:
+    st.session_state.chat_profile = None
+if "chat_results" not in st.session_state:
+    st.session_state.chat_results = None
 
 
 # ── Data helpers ──────────────────────────────────────────────────────────────
@@ -358,112 +364,136 @@ if st.session_state.page == "home":
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# FIND BIDS PAGE
+# FIND BIDS PAGE — Conversational AI Agent
 # ════════════════════════════════════════════════════════════════════════════
 elif st.session_state.page == "find":
     nav()
 
-    if st.session_state.results_df is None:
-        st.markdown('<div class="section-label">Find Opportunities</div>', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">Tell us about your company</div>', unsafe_allow_html=True)
-        st.markdown('<div class="section-sub">We\'ll score 1,387 active federal contract opportunities against your profile and return the best matches.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-label">Find Opportunities</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Tell me about your company</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-sub">Describe what your company does — our AI agent will ask follow-up questions, then score 1,387 federal opportunities against your profile.</div>', unsafe_allow_html=True)
 
-        # Demo profiles shortcut
-        st.markdown("**Quick start — load a sample profile:**")
+    # Quick-start demo buttons (still useful for demos)
+    if not st.session_state.chat_messages:
+        st.markdown("**Quick start — try a sample company:**")
         demo_cols = st.columns(4)
-        DEMO_PROFILES = {
-            "technova": "Demo IT Firm",
-            "apexeng": "Demo Engineering Firm",
-            "cyberops": "Demo Cybersecurity Firm",
-            "startup": "Demo Small IT Startup",
+        DEMO_STARTERS = {
+            "Demo IT Firm": "We're an 8(a) certified IT firm specializing in software development, cloud migration, and data analytics. We work with agencies like DoD and VA. Our contracts typically range from $100K to $10M.",
+            "Demo Engineering Firm": "We're a small engineering company focused on electrical and mechanical systems, construction, and facility sustainment. We're SBA certified. Our typical contracts are $200K to $20M.",
+            "Demo Cybersecurity Firm": "We're an 8(a) cybersecurity firm offering network security, PKI, and IT infrastructure support. We hold SECRET clearance and work with DoD and DHS. Contracts from $500K to $50M.",
+            "Demo Small IT Startup": "We're a small SBA-certified software company in Texas doing web development and database work. We're new to federal contracting, looking for smaller contracts under $500K.",
         }
-        for i, (key, label) in enumerate(DEMO_PROFILES.items()):
+        for i, (label, starter_text) in enumerate(DEMO_STARTERS.items()):
             with demo_cols[i]:
-                if st.button(label, use_container_width=True):
-                    from scoring import PROFILES, embed_profile
-                    with st.spinner(f"Scoring opportunities for {label}…"):
-                        profile = PROFILES[key]
-                        df = score_custom_profile(profile)
-                        st.session_state.results_df = df
-                        st.session_state.profile_used = profile
-                        st.rerun()
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("**Or enter your own company details:**")
-
-        with st.form("profile_form"):
-            col1, col2 = st.columns(2)
-            with col1:
-                company_name = st.text_input("Company name *", placeholder="Acme Federal Services LLC")
-                naics_input = st.text_input("NAICS codes (comma-separated) *", placeholder="541511, 541512, 541330")
-                set_asides = st.multiselect("Set-aside eligibility", ["SBA", "8(a)", "WOSB", "SDVOSB", "HUBZone"], default=["SBA"])
-                keywords = st.text_input("Keywords / capabilities (comma-separated)", placeholder="cybersecurity, cloud, software development")
-            with col2:
-                min_val = st.number_input("Min contract value ($)", min_value=0, value=100_000, step=50_000)
-                max_val = st.number_input("Max contract value ($)", min_value=0, value=5_000_000, step=500_000)
-                past_agencies = st.text_input("Past agency experience (comma-separated)", placeholder="Department of Defense, GSA")
-                states = st.text_input("States you operate in (comma-separated)", placeholder="VA, MD, DC, TX")
-
-            submitted = st.form_submit_button("🎯 Find My Opportunities", type="primary", use_container_width=True)
-
-        if submitted:
-            if not company_name or not naics_input:
-                st.error("Company name and NAICS codes are required.")
-            else:
-                profile = {
-                    "name": company_name,
-                    "naics_codes": [n.strip() for n in naics_input.split(",") if n.strip()],
-                    "set_asides": set_asides,
-                    "clearances": [],
-                    "min_contract_value": min_val,
-                    "max_contract_value": max_val,
-                    "keywords": [k.strip() for k in keywords.split(",") if k.strip()],
-                    "past_agencies": [a.strip() for a in past_agencies.split(",") if a.strip()],
-                    "location_states": [s.strip() for s in states.split(",") if s.strip()],
-                    "embedding": None,
-                }
-                with st.spinner("Analyzing 1,387 opportunities against your profile…"):
-                    df = score_custom_profile(profile)
-                    st.session_state.results_df = df
-                    st.session_state.profile_used = profile
+                if st.button(label, use_container_width=True, key=f"demo_{i}"):
+                    st.session_state.chat_messages.append({"role": "user", "content": starter_text})
                     st.rerun()
 
-    else:
-        # Results view
-        df = st.session_state.results_df
-        profile = st.session_state.profile_used
+    st.markdown("---")
 
-        pursue = len(df[df.DECISION == "PURSUE"])
-        watch = len(df[df.DECISION == "WATCH"])
+    # ── Chat history ──────────────────────────────────────────────────────────
+    for msg in st.session_state.chat_messages:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
 
-        col_back, col_title = st.columns([1, 5])
-        with col_back:
-            if st.button("← New Search"):
-                st.session_state.results_df = None
-                st.session_state.profile_used = {}
-                st.rerun()
-
-        st.markdown(f"### Results for {profile.get('name', 'Your Company')}")
-
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Opportunities scored", len(df))
-        m2.metric("PURSUE", pursue)
-        m3.metric("WATCH", watch)
-        m4.metric("Avg fit score", f"{df.FIT_SCORE.mean():.1f}")
+    # ── If we have scoring results, show them below chat ──────────────────────
+    if st.session_state.chat_results:
+        results = st.session_state.chat_results
+        profile = st.session_state.chat_profile or {}
 
         st.markdown("---")
+        st.markdown(f"### Results for {profile.get('name', 'Your Company')}")
+
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Scored", results["total"])
+        m2.metric("PURSUE", results["pursue_count"])
+        m3.metric("WATCH", results["watch_count"])
 
         fc1, fc2 = st.columns([2, 1])
         with fc1:
-            decision_filter = st.multiselect("Decision", ["PURSUE", "WATCH", "NO_BID"], default=["PURSUE", "WATCH"])
+            decision_filter = st.multiselect(
+                "Decision", ["PURSUE", "WATCH", "NO_BID"], default=["PURSUE", "WATCH"], key="chat_filter"
+            )
         with fc2:
-            score_min = st.slider("Min score", 0, 100, 50)
+            score_min = st.slider("Min score", 0, 100, 50, key="chat_score_min")
 
-        filtered = df[df.DECISION.isin(decision_filter) & (df.FIT_SCORE >= score_min)]
-        st.caption(f"Showing {len(filtered)} opportunities")
+        top = results["top_results"]
+        filtered = [r for r in top if r["decision"] in decision_filter and r["fit_score"] >= score_min]
+        st.caption(f"Showing {len(filtered)} of top 20 results")
 
-        for _, row in filtered.iterrows():
-            render_card(row.to_dict())
+        for opp in filtered:
+            with st.container(border=True):
+                badge_color = {"PURSUE": "#16a34a", "WATCH": "#d97706", "NO_BID": "#6b7280"}.get(opp["decision"], "#6b7280")
+                left, right = st.columns([5, 1])
+                with left:
+                    st.markdown(f"**{opp['title'] or 'Untitled'}**")
+                    st.caption(f"{opp['agency']} · NAICS {opp['naics_code']} · {opp.get('set_aside') or 'Open'} · Due {opp['deadline'] or 'TBD'}")
+                    desc = opp.get("description", "")
+                    if desc and not desc.startswith("http"):
+                        st.markdown(f"<small>{desc[:250]}…</small>", unsafe_allow_html=True)
+                with right:
+                    st.markdown(
+                        f'<div style="text-align:center;background:{badge_color};color:white;border-radius:8px;padding:8px 4px;font-weight:700;">'
+                        f'{opp["fit_score"]}<br><small>{opp["decision"]}</small></div>',
+                        unsafe_allow_html=True,
+                    )
+                    if opp.get("ui_link"):
+                        st.link_button("SAM.gov →", opp["ui_link"], use_container_width=True)
+
+                # "Why does this fit?" button
+                btn_key = f"explain_{opp['notice_id']}"
+                explain_key = f"explain_text_{opp['notice_id']}"
+                if st.button("Why does this fit me?", key=btn_key):
+                    try:
+                        from agent import run_explain_fit
+                        with st.spinner("Generating fit analysis…"):
+                            explanation = run_explain_fit(
+                                {
+                                    "notice_id": opp["notice_id"],
+                                    "title": opp["title"],
+                                    "description": opp["description"],
+                                    "agency": opp["agency"],
+                                    "naics_code": opp["naics_code"],
+                                    "set_aside": opp["set_aside"],
+                                    "fit_score": opp["fit_score"],
+                                    "decision": opp["decision"],
+                                },
+                                profile,
+                            )
+                            st.session_state[explain_key] = explanation
+                    except Exception as e:
+                        st.session_state[explain_key] = f"Could not generate explanation: {e}"
+                if explain_key in st.session_state:
+                    st.info(st.session_state[explain_key])
+
+        # New search
+        if st.button("← Start New Search", key="new_search"):
+            st.session_state.chat_messages = []
+            st.session_state.chat_profile = None
+            st.session_state.chat_results = None
+            st.rerun()
+
+    # ── Chat input ────────────────────────────────────────────────────────────
+    if not st.session_state.chat_results:
+        user_input = st.chat_input("Describe your company or answer the agent's question…")
+        if user_input:
+            st.session_state.chat_messages.append({"role": "user", "content": user_input})
+            try:
+                from agent import chat as agent_chat
+                with st.spinner("Thinking…"):
+                    response_text, updated_profile, scoring_results = agent_chat(
+                        st.session_state.chat_messages,
+                        st.session_state.chat_profile,
+                    )
+                st.session_state.chat_messages.append({"role": "assistant", "content": response_text})
+                if updated_profile:
+                    st.session_state.chat_profile = updated_profile
+                if scoring_results:
+                    st.session_state.chat_results = scoring_results
+            except Exception as e:
+                err = f"Agent error: {e}"
+                st.session_state.chat_messages.append({"role": "assistant", "content": err})
+            st.rerun()
 
 
 # ════════════════════════════════════════════════════════════════════════════

@@ -1,0 +1,285 @@
+"""
+Conversational AI agent for Contract Fit Engine.
+Extracts company profile from natural language, identifies missing info,
+scores opportunities, and generates RAG-based fit explanations.
+"""
+import os
+import json
+from openai import AzureOpenAI
+
+
+SYSTEM_PROMPT = """You are a federal contract intelligence assistant helping small businesses find federal contract opportunities worth pursuing.
+
+Your job is to:
+1. Extract the company's profile from their natural language description
+2. Identify what critical information is still missing
+3. Ask ONE focused follow-up question at a time to fill gaps
+4. When you have enough information, call the score_opportunities tool
+5. After scoring, help the user understand their results
+
+Required information before scoring:
+- NAICS code(s) — the company's registered codes (you can suggest based on industry description)
+- Set-aside eligibility — SBA, 8(a), WOSB, SDVOSB, HUBZone, or none
+- Contract size range — min and max they're comfortable with
+
+Helpful but optional:
+- Past federal agency experience
+- Key capabilities or keywords
+- States they operate in
+
+Be conversational and helpful. When suggesting NAICS codes, explain what they mean.
+When you have enough info, tell the user you're ready to score and call the tool.
+Never ask for more than one thing at a time."""
+
+
+TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "score_opportunities",
+            "description": "Score all federal opportunities against the extracted company profile. Call this when you have enough information about the company.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "company_name": {"type": "string", "description": "Company name"},
+                    "naics_codes": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of NAICS codes e.g. ['541511', '541512']"
+                    },
+                    "set_asides": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Set-aside eligibilities e.g. ['SBA', '8(a)']"
+                    },
+                    "min_contract_value": {"type": "number", "description": "Minimum contract value in dollars"},
+                    "max_contract_value": {"type": "number", "description": "Maximum contract value in dollars"},
+                    "keywords": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Key capabilities and focus areas"
+                    },
+                    "past_agencies": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Federal agencies the company has worked with before"
+                    },
+                    "location_states": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "States where the company operates e.g. ['VA', 'MD', 'DC']"
+                    },
+                },
+                "required": ["naics_codes", "set_asides", "min_contract_value", "max_contract_value"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "explain_fit",
+            "description": "Generate a RAG-based explanation of why a specific opportunity fits (or doesn't fit) the company profile. Call when the user asks about a specific opportunity.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "notice_id": {"type": "string", "description": "The opportunity notice ID"},
+                    "title": {"type": "string", "description": "Opportunity title"},
+                    "description": {"type": "string", "description": "Full opportunity description"},
+                    "agency": {"type": "string", "description": "Agency name"},
+                    "naics_code": {"type": "string", "description": "NAICS code"},
+                    "set_aside": {"type": "string", "description": "Set-aside type"},
+                    "fit_score": {"type": "number", "description": "The computed fit score"},
+                    "decision": {"type": "string", "description": "PURSUE, WATCH, or NO_BID"},
+                },
+                "required": ["title", "description", "fit_score", "decision"],
+            },
+        },
+    },
+]
+
+
+def get_client():
+    return AzureOpenAI(
+        api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+        api_version="2024-02-01",
+    )
+
+
+def run_score_opportunities(args: dict) -> dict:
+    """Execute scoring against the extracted profile."""
+    import sys
+    sys.path.insert(0, os.path.dirname(__file__))
+    from scoring import embed_profile, compute_fit_score
+    from snowflake_conn import get_connection
+
+    profile = {
+        "name": args.get("company_name", "Your Company"),
+        "naics_codes": args.get("naics_codes", []),
+        "set_asides": args.get("set_asides", []),
+        "clearances": [],
+        "min_contract_value": args.get("min_contract_value", 0),
+        "max_contract_value": args.get("max_contract_value", 10_000_000),
+        "keywords": args.get("keywords", []),
+        "past_agencies": args.get("past_agencies", []),
+        "location_states": args.get("location_states", []),
+        "embedding": None,
+    }
+
+    profile_embedding = embed_profile(profile)
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("USE WAREHOUSE COMPUTE_WH")
+    cursor.execute("""
+        SELECT d.NOTICE_ID, d.TITLE, d.AGENCY_NAME, d.NAICS_CODE, d.NAICS_DESCRIPTION,
+               d.SET_ASIDE, d.NAICS_SB_WIN_RATE_PCT, d.NAICS_MEDIAN_AWARD_AMOUNT,
+               d.RESPONSE_DEADLINE, m.EMBEDDING, o.UI_LINK, o.DESCRIPTION
+        FROM GOVCONTRACT.AGENTS.AGENT_DECISIONS d
+        LEFT JOIN GOVCONTRACT.MARTS.MART_OPPORTUNITY_FEATURES m ON m.NOTICE_ID = d.NOTICE_ID
+        LEFT JOIN GOVCONTRACT.RAW.STG_SAM_OPPORTUNITIES o ON o.NOTICE_ID = d.NOTICE_ID
+    """)
+    rows = cursor.fetchall()
+    cols = [c[0] for c in cursor.description]
+    conn.close()
+
+    results = []
+    for row in rows:
+        opp = dict(zip(cols, row))
+        emb = opp.get("EMBEDDING")
+        if isinstance(emb, str):
+            emb = json.loads(emb)
+        opp["embedding"] = emb
+        opp["naics_code"] = opp.get("NAICS_CODE")
+        opp["agency"] = opp.get("AGENCY_NAME")
+        opp["set_aside"] = opp.get("SET_ASIDE")
+        opp["win_rate"] = float(opp["NAICS_SB_WIN_RATE_PCT"]) if opp.get("NAICS_SB_WIN_RATE_PCT") else None
+        opp["median_award"] = float(opp["NAICS_MEDIAN_AWARD_AMOUNT"]) if opp.get("NAICS_MEDIAN_AWARD_AMOUNT") else None
+        opp["title"] = opp.get("TITLE")
+        opp["description"] = opp.get("DESCRIPTION")
+
+        score, decision = compute_fit_score(opp, profile, profile_embedding)
+        results.append({
+            "notice_id": opp["NOTICE_ID"],
+            "title": opp["TITLE"] or "",
+            "agency": opp["AGENCY_NAME"] or "",
+            "naics_code": opp["NAICS_CODE"] or "",
+            "naics_description": opp["NAICS_DESCRIPTION"] or "",
+            "set_aside": opp["SET_ASIDE"] or "",
+            "fit_score": score,
+            "decision": decision,
+            "deadline": str(opp["RESPONSE_DEADLINE"] or "")[:10],
+            "ui_link": opp["UI_LINK"] or "",
+            "description": (opp["DESCRIPTION"] or "")[:500],
+        })
+
+    results.sort(key=lambda x: x["fit_score"], reverse=True)
+    pursue = [r for r in results if r["decision"] == "PURSUE"]
+    watch = [r for r in results if r["decision"] == "WATCH"]
+
+    return {
+        "profile": profile,
+        "total": len(results),
+        "pursue_count": len(pursue),
+        "watch_count": len(watch),
+        "top_results": results[:20],
+    }
+
+
+def run_explain_fit(args: dict, profile: dict) -> str:
+    """Generate RAG explanation for a specific opportunity."""
+    client = get_client()
+
+    deployment = os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT", "gpt-4o")
+
+    prompt = f"""You are a federal contracting advisor. Analyze whether this federal contract opportunity is a good fit for this company and explain your reasoning clearly and concisely.
+
+COMPANY PROFILE:
+- Name: {profile.get('name', 'The company')}
+- NAICS codes: {', '.join(profile.get('naics_codes', []))}
+- Set-aside eligibility: {', '.join(profile.get('set_asides', []))}
+- Contract size range: ${profile.get('min_contract_value', 0):,.0f} – ${profile.get('max_contract_value', 0):,.0f}
+- Keywords/capabilities: {', '.join(profile.get('keywords', []))}
+- Past agencies: {', '.join(profile.get('past_agencies', []))}
+
+OPPORTUNITY:
+- Title: {args.get('title')}
+- Agency: {args.get('agency', 'Unknown')}
+- NAICS: {args.get('naics_code', 'Unknown')}
+- Set-aside: {args.get('set_aside') or 'None'}
+- Fit score: {args.get('fit_score')}/100
+- Decision: {args.get('decision')}
+- Description: {args.get('description', 'No description available')}
+
+Provide a concise analysis with these sections:
+✅ **Why this fits** — 2-3 specific reasons based on the opportunity and company profile
+⚠️ **Watch out for** — 1-2 risks or gaps to investigate
+📋 **Next steps** — 1-2 concrete actions if they want to pursue this
+
+Keep it practical and specific. No generic advice."""
+
+    response = client.chat.completions.create(
+        model=deployment,
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=500,
+        temperature=0.3,
+    )
+    return response.choices[0].message.content
+
+
+def chat(messages: list, profile: dict = None) -> tuple[str, dict, dict]:
+    """
+    Run one turn of the agent.
+    Returns (response_text, updated_profile, scoring_results)
+    """
+    client = get_client()
+    deployment = os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT", "gpt-4o")
+
+    full_messages = [{"role": "system", "content": SYSTEM_PROMPT}] + messages
+
+    response = client.chat.completions.create(
+        model=deployment,
+        messages=full_messages,
+        tools=TOOLS,
+        tool_choice="auto",
+        max_tokens=800,
+        temperature=0.4,
+    )
+
+    msg = response.choices[0].message
+    scoring_results = None
+
+    if msg.tool_calls:
+        tool_call = msg.tool_calls[0]
+        fn_name = tool_call.function.name
+        fn_args = json.loads(tool_call.function.arguments)
+
+        if fn_name == "score_opportunities":
+            scoring_results = run_score_opportunities(fn_args)
+            profile = scoring_results["profile"]
+            tool_result = json.dumps({
+                "total": scoring_results["total"],
+                "pursue_count": scoring_results["pursue_count"],
+                "watch_count": scoring_results["watch_count"],
+                "top_3": scoring_results["top_results"][:3],
+            })
+        elif fn_name == "explain_fit":
+            tool_result = run_explain_fit(fn_args, profile or {})
+        else:
+            tool_result = "Tool not found."
+
+        # Send tool result back to model for final response
+        follow_up = client.chat.completions.create(
+            model=deployment,
+            messages=full_messages + [
+                {"role": "assistant", "content": None, "tool_calls": msg.tool_calls},
+                {"role": "tool", "tool_call_id": tool_call.id, "content": tool_result},
+            ],
+            max_tokens=600,
+            temperature=0.4,
+        )
+        response_text = follow_up.choices[0].message.content
+    else:
+        response_text = msg.content
+
+    return response_text, profile, scoring_results
