@@ -474,7 +474,7 @@ elif st.session_state.page == "tech":
 
     st.markdown('<div class="section-label">Under the Hood</div>', unsafe_allow_html=True)
     st.markdown('<div class="section-title">How Contract Fit Engine works</div>', unsafe_allow_html=True)
-    st.markdown('<div class="section-sub">A fully automated data pipeline that ingests, transforms, scores, and indexes federal contract opportunities daily.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-sub">A fully automated data pipeline that ingests, transforms, scores, and indexes federal contract opportunities weekly.</div>', unsafe_allow_html=True)
 
     c1, c2 = st.columns([1, 1])
 
@@ -506,7 +506,7 @@ elif st.session_state.page == "tech":
           <div class="step-num">4</div>
           <div class="step-content">
             <h4>Score for fit</h4>
-            <p>A weighted scoring engine computes a FIT_SCORE (0–100) across 5 dimensions — capability match, past performance, contract size, competition, and strategic alignment.</p>
+            <p>A conversational AI agent extracts your company profile from natural language, then a weighted scoring engine computes a FIT_SCORE (0–100) across 5 dimensions. As win/loss outcome data is captured from USASpending.gov, this rule-based engine will be replaced by an ML model trained on real award data.</p>
           </div>
         </div>
         <div class="step">
@@ -544,6 +544,23 @@ elif st.session_state.page == "tech":
 
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown('[View full scoring methodology →](https://gennadyvit.github.io/contract-fit-engine/scoring-model.html)')
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("**Roadmap: ML-based scoring**")
+        st.markdown("""
+        The current rule-based engine uses fixed weights validated against domain knowledge.
+        As award outcome data is ingested from USASpending.gov — matching solicitations to
+        actual winners — it will be used as training data for an ML classifier that learns
+        which opportunity features actually predict wins for a given company profile.
+        User bid outcomes (won / lost) captured through the app will supplement this signal.
+        """)
+        st.markdown('<div class="tech-category" style="margin-top:8px;">Planned ML stack</div>', unsafe_allow_html=True)
+        st.markdown("""
+        <span class="tech-pill">USASpending.gov awards data</span>
+        <span class="tech-pill">Win/loss outcome labels</span>
+        <span class="tech-pill">scikit-learn / XGBoost</span>
+        <span class="tech-pill">Feature store in Snowflake</span>
+        """, unsafe_allow_html=True)
 
     st.markdown("---")
     st.markdown("#### Tech Stack")
