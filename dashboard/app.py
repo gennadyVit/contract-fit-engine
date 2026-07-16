@@ -372,10 +372,10 @@ elif st.session_state.page == "find":
         st.markdown("**Quick start — load a sample profile:**")
         demo_cols = st.columns(4)
         DEMO_PROFILES = {
-            "technova": "TechNova Solutions",
-            "apexeng": "Apex Engineering",
-            "cyberops": "CyberOps Federal",
-            "startup": "BluePath Tech",
+            "technova": "Demo IT Firm",
+            "apexeng": "Demo Engineering Firm",
+            "cyberops": "Demo Cybersecurity Firm",
+            "startup": "Demo Small IT Startup",
         }
         for i, (key, label) in enumerate(DEMO_PROFILES.items()):
             with demo_cols[i]:

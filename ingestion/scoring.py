@@ -29,7 +29,7 @@ WATCH_THRESHOLD  = 50
 
 PROFILES = {
     "technova": {
-        "name": "TechNova Solutions LLC",
+        "name": "Demo IT Firm (8a, $100K–$10M)",
         "naics_codes": ["541511", "541512", "541519", "541330", "518210"],
         "set_asides": ["SBA", "8(a)"],
         "clearances": [],
@@ -43,7 +43,7 @@ PROFILES = {
         "embedding": None,
     },
     "startup": {
-        "name": "BluePath Tech Inc",
+        "name": "Demo Small IT Startup (SBA, $50K–$500K)",
         "naics_codes": ["541511"],
         "set_asides": ["SBA"],
         "clearances": [],
@@ -55,7 +55,7 @@ PROFILES = {
         "embedding": None,
     },
     "apexeng": {
-        "name": "Apex Engineering Group LLC",
+        "name": "Demo Engineering Firm (SBA, $200K–$20M)",
         "naics_codes": ["541330", "541310", "541340", "236220", "238220"],
         "set_asides": ["SBA"],
         "clearances": [],
@@ -69,7 +69,7 @@ PROFILES = {
         "embedding": None,
     },
     "cyberops": {
-        "name": "CyberOps Federal Solutions Inc",
+        "name": "Demo Cybersecurity Firm (8a, $500K–$50M)",
         "naics_codes": ["541512", "541519", "541513", "518210", "561621"],
         "set_asides": ["SBA", "8(a)"],
         "clearances": ["SECRET"],
