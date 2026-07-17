@@ -28,7 +28,14 @@ If the user gives a size range like "$50K–$500K", set min_contract_value=50000
 Do NOT ask for information that is already in the user's message.
 
 When you have all three required fields, call score_opportunities immediately without asking further questions.
-Be conversational and helpful. Never ask for more than one thing at a time."""
+Be conversational and helpful. Never ask for more than one thing at a time.
+
+After scoring is complete, you can also answer general questions about:
+- How scoring works: 5 weighted components — capability match (35%), past performance (25%), contract size fit (15%), competition favorability (15%), strategic keyword match (10%). Hard gates cap the score if set-aside eligibility doesn't match.
+- Data freshness: opportunities are pulled weekly from SAM.gov. The last extract runs every Monday.
+- What PURSUE/WATCH/NO_BID means: PURSUE = score ≥ 70, WATCH = 50–69, NO_BID = below 50.
+- NAICS codes: 6-digit industry classification codes used by the federal government.
+- Set-asides: contract reservations for certified small businesses (SBA, 8(a), WOSB, SDVOSB, HUBZone)."""
 
 
 TOOLS = [
@@ -279,6 +286,9 @@ def chat(messages: list, profile: dict = None) -> tuple[str, dict, dict]:
 
     # Fallback if model returned nothing
     if not response_text.strip():
-        response_text = "I received your description. Could you tell me what NAICS codes your company is registered under? (e.g. 541511 for custom software development)"
+        if scoring_results:
+            response_text = f"I've scored {scoring_results['total']} opportunities against your profile. Found {scoring_results['pursue_count']} to PURSUE and {scoring_results['watch_count']} to WATCH. See the results below — click 'Why does this fit me?' on any card for a detailed analysis."
+        else:
+            response_text = "Got it. Could you tell me your NAICS code(s)? For example, 541511 for custom software development."
 
     return response_text, profile, scoring_results

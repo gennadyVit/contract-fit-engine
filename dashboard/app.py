@@ -445,7 +445,33 @@ elif st.session_state.page == "find":
                 else:
                     st.warning("Please enter a response first.")
         else:
-            st.markdown("**Scoring complete.** See results below.")
+            st.markdown("**Ask a follow-up question:**")
+            st.markdown(
+                '<div style="color:#64748b;font-size:14px;margin-bottom:12px;">Ask about scoring, data freshness, how to interpret results, or anything else.</div>',
+                unsafe_allow_html=True,
+            )
+            followup_key = f"followup_{len(st.session_state.chat_messages)}"
+            followup_input = st.text_area(
+                label="followup",
+                label_visibility="collapsed",
+                placeholder="e.g. How was the scoring calculated? When was the data last updated? What does WATCH mean?",
+                height=140,
+                key=followup_key,
+            )
+            if st.button("Send →", type="primary", use_container_width=True, key="send_followup"):
+                if followup_input.strip():
+                    st.session_state.chat_messages.append({"role": "user", "content": followup_input.strip()})
+                    try:
+                        from agent import chat as agent_chat
+                        with st.spinner("Thinking…"):
+                            response_text, _, _ = agent_chat(
+                                st.session_state.chat_messages,
+                                st.session_state.chat_profile,
+                            )
+                        st.session_state.chat_messages.append({"role": "assistant", "content": response_text})
+                    except Exception as e:
+                        st.session_state.chat_messages.append({"role": "assistant", "content": f"Error: {e}"})
+                    st.rerun()
             if st.button("← Start New Search", key="new_search_right"):
                 st.session_state.chat_messages = []
                 st.session_state.chat_profile = None
