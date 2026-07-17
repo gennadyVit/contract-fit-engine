@@ -230,7 +230,7 @@ Keep it practical and specific. No generic advice."""
             {"role": "system", "content": "You are a federal contracting advisor. Always respond with a detailed analysis."},
             {"role": "user", "content": prompt},
         ],
-        max_completion_tokens=600,
+        max_completion_tokens=5000,
     )
     msg = response.choices[0].message
     content = msg.content
@@ -260,7 +260,7 @@ def chat(messages: list, profile: dict = None, scoring_done: bool = False) -> tu
         messages=full_messages,
         tools=TOOLS,
         tool_choice="auto",
-        max_completion_tokens=800,
+        max_completion_tokens=5000,
     )
 
     msg = response.choices[0].message
@@ -291,7 +291,7 @@ def chat(messages: list, profile: dict = None, scoring_done: bool = False) -> tu
                 {"role": "assistant", "content": None, "tool_calls": msg.tool_calls},
                 {"role": "tool", "tool_call_id": tool_call.id, "content": tool_result},
             ],
-            max_completion_tokens=800,
+            max_completion_tokens=5000,
         )
         response_text = follow_up.choices[0].message.content or ""
     else:
