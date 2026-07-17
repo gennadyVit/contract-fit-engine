@@ -526,28 +526,30 @@ elif st.session_state.page == "find":
                 # "Why does this fit?" button
                 btn_key = f"explain_{opp['notice_id']}"
                 explain_key = f"explain_text_{opp['notice_id']}"
-                if st.button("Why does this fit me?", key=btn_key):
-                    try:
+                if explain_key not in st.session_state:
+                    if st.button("Why does this fit me?", key=btn_key):
                         from agent import run_explain_fit
                         with st.spinner("Generating fit analysis…"):
-                            explanation = run_explain_fit(
-                                {
-                                    "notice_id": opp["notice_id"],
-                                    "title": opp["title"],
-                                    "description": opp["description"],
-                                    "agency": opp["agency"],
-                                    "naics_code": opp["naics_code"],
-                                    "set_aside": opp["set_aside"],
-                                    "fit_score": opp["fit_score"],
-                                    "decision": opp["decision"],
-                                },
-                                profile,
-                            )
-                            st.session_state[explain_key] = explanation
-                    except Exception as e:
-                        st.session_state[explain_key] = f"Could not generate explanation: {e}"
-                if explain_key in st.session_state:
-                    st.info(st.session_state[explain_key])
+                            try:
+                                explanation = run_explain_fit(
+                                    {
+                                        "notice_id": opp["notice_id"],
+                                        "title": opp["title"],
+                                        "description": opp["description"],
+                                        "agency": opp["agency"],
+                                        "naics_code": opp["naics_code"],
+                                        "set_aside": opp["set_aside"],
+                                        "fit_score": opp["fit_score"],
+                                        "decision": opp["decision"],
+                                    },
+                                    profile,
+                                )
+                            except Exception as e:
+                                explanation = f"Error: {e}"
+                        st.session_state[explain_key] = explanation
+                        st.rerun()
+                else:
+                    st.markdown(st.session_state[explain_key])
 
 
 

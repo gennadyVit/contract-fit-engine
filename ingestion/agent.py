@@ -227,9 +227,12 @@ Keep it practical and specific. No generic advice."""
     response = client.chat.completions.create(
         model=deployment,
         messages=[{"role": "user", "content": prompt}],
-        max_completion_tokens=500,
+        max_completion_tokens=600,
     )
-    return response.choices[0].message.content
+    content = response.choices[0].message.content
+    if not content or not content.strip():
+        return "Analysis not available — the model returned an empty response. Try again."
+    return content
 
 
 def chat(messages: list, profile: dict = None, scoring_done: bool = False) -> tuple[str, dict, dict]:
