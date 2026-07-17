@@ -379,6 +379,11 @@ if st.session_state.page == "home":
 # ════════════════════════════════════════════════════════════════════════════
 elif st.session_state.page == "find":
     nav()
+    # Scroll to top of page on every rerun
+    st.markdown(
+        "<script>window.parent.document.querySelector('section.main').scrollTo(0, 0);</script>",
+        unsafe_allow_html=True,
+    )
 
     # ── Example cards (shown only before conversation starts) ─────────────────
     if not st.session_state.chat_messages:
