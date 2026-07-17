@@ -372,8 +372,9 @@ elif st.session_state.page == "find":
     # ── Example cards (shown only before conversation starts) ─────────────────
     if not st.session_state.chat_messages:
         st.markdown('<div class="section-title" style="text-align:center;margin-bottom:8px;">Tell me about your company</div>', unsafe_allow_html=True)
-        st.markdown('<div style="text-align:center;color:#64748b;margin-bottom:32px;">Describe what your company does — the agent will ask follow-up questions, then score 1,387 federal opportunities against your profile.</div>', unsafe_allow_html=True)
+        st.markdown('<div style="text-align:center;color:#64748b;margin-bottom:32px;">Describe what your company does. The agent will ask a few follow-up questions, then score active federal opportunities against your profile.</div>', unsafe_allow_html=True)
 
+        st.markdown('<div style="font-size:12px;font-weight:600;color:#94a3b8;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;">Example companies</div>', unsafe_allow_html=True)
         examples = [
             ("🖥️ IT / Software", "8(a) · 541511 · $100K–$10M", "We're an 8(a) IT firm doing software development and cloud migration for DoD and VA."),
             ("⚙️ Engineering", "SBA · 541330 · $200K–$20M", "Small SBA engineering firm specializing in electrical systems and facility sustainment."),
