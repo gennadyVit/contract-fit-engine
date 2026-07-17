@@ -232,7 +232,7 @@ Keep it practical and specific. No generic advice."""
     return response.choices[0].message.content
 
 
-def chat(messages: list, profile: dict = None) -> tuple[str, dict, dict]:
+def chat(messages: list, profile: dict = None, scoring_done: bool = False) -> tuple[str, dict, dict]:
     """
     Run one turn of the agent.
     Returns (response_text, updated_profile, scoring_results)
@@ -240,7 +240,11 @@ def chat(messages: list, profile: dict = None) -> tuple[str, dict, dict]:
     client = get_client()
     deployment = os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT", "gpt-5-mini")
 
-    full_messages = [{"role": "system", "content": SYSTEM_PROMPT}] + messages
+    system = SYSTEM_PROMPT
+    if scoring_done and profile:
+        system += f"\n\nSCORING IS ALREADY COMPLETE. Do NOT ask for company info or call score_opportunities again. The user's profile has been extracted: NAICS={profile.get('naics_codes')}, set-asides={profile.get('set_asides')}, size=${profile.get('min_contract_value'):,}–${profile.get('max_contract_value'):,}. Answer the user's question directly."
+
+    full_messages = [{"role": "system", "content": system}] + messages
 
     response = client.chat.completions.create(
         model=deployment,

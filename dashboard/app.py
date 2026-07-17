@@ -467,6 +467,7 @@ elif st.session_state.page == "find":
                             response_text, _, _ = agent_chat(
                                 st.session_state.chat_messages,
                                 st.session_state.chat_profile,
+                                scoring_done=True,
                             )
                         st.session_state.chat_messages.append({"role": "assistant", "content": response_text})
                     except Exception as e:
