@@ -1,0 +1,70 @@
+name: Weekly Airflow DAG Trigger
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"  # Monday 6 AM UTC
+  workflow_dispatch:      # allow manual trigger
+
+jobs:
+  trigger-dag:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Scale Airflow to 1 replica
+        run: |
+          az containerapp update \
+            --name govcontract-airflow \
+            --resource-group govcontract-rg \
+            --min-replicas 1 \
+            --max-replicas 1
+
+      - name: Wait for Airflow to be ready
+        run: |
+          echo "Waiting for Airflow webserver..."
+          for i in $(seq 1 30); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              https://govcontract-airflow.blueocean-2d1872e6.eastus.azurecontainerapps.io/health)
+            if [ "$STATUS" = "200" ]; then
+              echo "Airflow is ready"
+              break
+            fi
+            echo "Attempt $i: status $STATUS, waiting 20s..."
+            sleep 20
+          done
+
+      - name: Trigger DAG
+        run: |
+          curl -s -X POST \
+            "https://govcontract-airflow.blueocean-2d1872e6.eastus.azurecontainerapps.io/api/v1/dags/govcontract_daily_pipeline/dagRuns" \
+            -H "Content-Type: application/json" \
+            -u "admin:${{ secrets.AIRFLOW_ADMIN_PASSWORD }}" \
+            -d '{"conf": {}}'
+
+      - name: Wait for DAG to complete
+        run: |
+          echo "Waiting for DAG run to finish..."
+          for i in $(seq 1 60); do
+            STATE=$(curl -s \
+              "https://govcontract-airflow.blueocean-2d1872e6.eastus.azurecontainerapps.io/api/v1/dags/govcontract_daily_pipeline/dagRuns" \
+              -u "admin:${{ secrets.AIRFLOW_ADMIN_PASSWORD }}" | \
+              python3 -c "import sys,json; runs=json.load(sys.stdin)['dag_runs']; print(runs[-1]['state'] if runs else 'none')")
+            echo "DAG state: $STATE"
+            if [ "$STATE" = "success" ] || [ "$STATE" = "failed" ]; then
+              break
+            fi
+            sleep 60
+          done
+
+      - name: Scale Airflow back to 0
+        if: always()
+        run: |
+          az containerapp update \
+            --name govcontract-airflow \
+            --resource-group govcontract-rg \
+            --min-replicas 0 \
+            --max-replicas 1
