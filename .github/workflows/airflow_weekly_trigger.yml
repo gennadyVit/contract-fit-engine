@@ -11,9 +11,11 @@ jobs:
 
     steps:
       - name: Azure Login
-        uses: azure/login@v1
+        uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_9BDCAC8ECB2F47328586632B35F9C63A }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_14D109E23B6E4485B7980BEAC052D304 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_C50180A01B164D3CB390D3CB03C4E5AC }}
 
       - name: Scale Airflow to 1 replica
         run: |
