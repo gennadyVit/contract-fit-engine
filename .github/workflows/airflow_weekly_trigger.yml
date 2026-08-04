@@ -56,12 +56,7 @@ jobs:
               "https://govcontract-airflow.blueocean-2d1872e6.eastus.azurecontainerapps.io/api/v1/dags/govcontract_daily_pipeline/dagRuns" \
               -u "admin:${{ secrets.AIRFLOW_ADMIN_PASSWORD }}")
             echo "API response: $RESPONSE"
-            STATE=$(echo "$RESPONSE" | python3 -c "
-import sys, json
-data = json.load(sys.stdin)
-runs = data.get('dag_runs', data.get('items', []))
-print(runs[-1]['state'] if runs else 'running')
-" 2>/dev/null || echo "running")
+            STATE=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); runs=d.get('dag_runs',d.get('items',[])); print(runs[-1]['state'] if runs else 'running')" 2>/dev/null || echo "running")
             echo "DAG state: $STATE"
             if [ "$STATE" = "success" ] || [ "$STATE" = "failed" ]; then
               break
