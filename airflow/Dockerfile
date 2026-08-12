@@ -21,6 +21,7 @@ USER airflow
 COPY --chown=airflow:root ingestion/ /opt/airflow/govcontract/ingestion/
 COPY --chown=airflow:root airflow/dags/ /opt/airflow/dags/
 COPY --chown=airflow:root airflow/scripts/ /opt/airflow/govcontract/airflow/scripts/
+COPY --chown=airflow:root dbt/ /opt/airflow/govcontract/dbt/
 
 # Install ingestion dependencies into Airflow's Python (not dbt venv)
 RUN pip install --no-cache-dir \
