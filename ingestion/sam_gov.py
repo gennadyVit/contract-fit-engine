@@ -8,14 +8,14 @@ from snowflake_conn import get_connection
 load_dotenv()
 
 SAM_URL = "https://api.sam.gov/opportunities/v2/search"
-MAX_RECORDS = 1000
+MAX_RECORDS = 5000
 
 
 
 def fetch_and_load(cursor, posted_from="04/01/2026", posted_to="06/30/2026"):
     """Fetch and load page by page so rate limits don't lose already-fetched data."""
     offset = 0
-    limit = 100
+    limit = 1000  # SAM.gov max page size; fewer requests against the daily quota
     total_loaded = 0
     rate_limit_retries = 0
     MAX_RATE_LIMIT_RETRIES = 3

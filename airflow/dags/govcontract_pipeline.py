@@ -38,9 +38,10 @@ with DAG(
         from sam_gov import fetch_and_load
         import os
 
+        # DAG runs weekly, so pull the full past week
         today = datetime.utcnow()
-        yesterday = today - timedelta(days=1)
-        posted_from = yesterday.strftime("%m/%d/%Y")
+        week_ago = today - timedelta(days=7)
+        posted_from = week_ago.strftime("%m/%d/%Y")
         posted_to = today.strftime("%m/%d/%Y")
 
         conn = get_connection()
@@ -58,6 +59,13 @@ with DAG(
         from precompute_embeddings import main
         main()
 
+    def score_opportunities(**context):
+        import sys
+        sys.path.insert(0, "/opt/airflow/govcontract/ingestion")
+        from scoring import main
+        sys.argv = ["scoring.py", "technova"]  # main() reads the profile from argv
+        main()
+
     def send_digest(**context):
         import sys
         sys.path.insert(0, "/opt/airflow/govcontract")
@@ -69,9 +77,15 @@ with DAG(
         python_callable=ingest_sam_gov,
     )
 
+    # profiles.yml reads the key from a file; the container only has it as a
+    # base64-encoded PEM in SNOWFLAKE_PRIVATE_KEY, so write it out first.
     task_dbt = BashOperator(
         task_id="run_dbt",
         bash_command=(
+            "set -e && "
+            "echo \"$SNOWFLAKE_PRIVATE_KEY\" | base64 -d > /tmp/rsa_key.p8 && "
+            "chmod 600 /tmp/rsa_key.p8 && "
+            "export SNOWFLAKE_PRIVATE_KEY_PATH=/tmp/rsa_key.p8 && "
             "cd /opt/airflow/govcontract/dbt && "
             "dbt run --profiles-dir /opt/airflow/govcontract/dbt --target prod"
         ),
@@ -82,9 +96,14 @@ with DAG(
         python_callable=embed_new_opportunities,
     )
 
+    task_score = PythonOperator(
+        task_id="score_opportunities",
+        python_callable=score_opportunities,
+    )
+
     task_digest = PythonOperator(
         task_id="send_digest",
         python_callable=send_digest,
     )
 
-    task_ingest >> task_dbt >> task_embed >> task_digest
+    task_ingest >> task_dbt >> task_embed >> task_score >> task_digest
