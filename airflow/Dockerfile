@@ -4,12 +4,13 @@ USER root
 RUN apt-get update && apt-get install -y git python3-venv && apt-get clean
 
 # Install dbt-snowflake in an isolated virtualenv to avoid Airflow dependency conflicts
+# Pinned: unpinned installs picked up a dbt-core beta
 RUN python3 -m venv /opt/dbt-venv && \
-    /opt/dbt-venv/bin/pip install --no-cache-dir dbt-snowflake
+    /opt/dbt-venv/bin/pip install --no-cache-dir dbt-core==1.11.11 dbt-snowflake==1.11.5
 
-# Make dbt available on PATH via a wrapper script
-RUN echo '#!/bin/bash\n/opt/dbt-venv/bin/dbt "$@"' > /usr/local/bin/dbt && \
-    chmod +x /usr/local/bin/dbt
+# Make dbt available on PATH. A symlink, not an echo'd wrapper script: echo wrote a
+# literal "\n" into the shebang, so every `dbt` call failed with "required file not found".
+RUN ln -sf /opt/dbt-venv/bin/dbt /usr/local/bin/dbt
 
 # Copy entrypoint
 COPY --chown=airflow:root airflow/entrypoint.sh /entrypoint.sh
