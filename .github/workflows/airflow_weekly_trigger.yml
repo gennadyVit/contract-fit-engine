@@ -126,6 +126,32 @@ jobs:
           echo "DAG run did not finish within 90 minutes"
           exit 1
 
+      # Task logs live inside the container and are gone once it scales down,
+      # so print them here while Airflow is still running.
+      - name: Print logs of failed tasks
+        if: failure() && steps.trigger.outputs.run_id != ''
+        continue-on-error: true
+        env:
+          AIRFLOW_PW: ${{ secrets.AIRFLOW_ADMIN_PASSWORD }}
+          RUN_ID: ${{ steps.trigger.outputs.run_id }}
+        run: |
+          ENCODED=$(python3 -c "import os,urllib.parse; print(urllib.parse.quote(os.environ['RUN_ID'], safe=''))")
+          BASE="$AIRFLOW_URL/api/v1/dags/$DAG_ID/dagRuns/$ENCODED/taskInstances"
+          curl -sS -u "admin:$AIRFLOW_PW" "$BASE" \
+            | python3 -c "import sys,json; [print(t['task_id'], t['state']) for t in json.load(sys.stdin).get('task_instances', [])]" \
+            | tee states.txt
+          grep -E ' (failed|up_for_retry)$' states.txt | while read TASK STATE; do
+            for TRY in 1 2 3; do
+              CODE=$(curl -sS -o log.txt -w "%{http_code}" -u "admin:$AIRFLOW_PW" -H "Accept: text/plain" \
+                "$BASE/$TASK/logs/$TRY?full_content=true")
+              if [ "$CODE" = "200" ]; then
+                echo "::group::$TASK (try $TRY)"
+                cat log.txt
+                echo "::endgroup::"
+              fi
+            done
+          done
+
       - name: Scale Airflow back to 0
         if: always()
         run: |

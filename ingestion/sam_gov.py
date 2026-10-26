@@ -49,7 +49,7 @@ def fetch_and_load(cursor, posted_from="04/01/2026", posted_to="06/30/2026"):
         print(f"  Loaded {total_loaded}/{total}...")
         if total_loaded >= total or total_loaded >= MAX_RECORDS:
             break
-        offset += limit
+        offset += 1  # SAM.gov "offset" is a page index, not a record count
         time.sleep(1.0)
 
     return total_loaded

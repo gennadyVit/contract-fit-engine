@@ -6,6 +6,10 @@ on:
     paths:
       - "airflow/**"
       - "ingestion/**"
+      - "dbt/**"
+
+env:
+  IMAGE: govcontractacr.azurecr.io/govcontract-airflow
 
 jobs:
   build-and-deploy:
@@ -29,4 +33,21 @@ jobs:
           context: .
           file: airflow/Dockerfile
           push: true
-          tags: govcontractacr.azurecr.io/govcontract-airflow:latest
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # Container Apps doesn't re-pull an unchanged :latest reference, so point the
+      # app at this build's unique tag. Keeps min-replicas as is (scaled to 0).
+      - name: Deploy image to Container App
+        run: |
+          az containerapp update \
+            --name govcontract-airflow \
+            --resource-group govcontract-rg \
+            --image "$IMAGE:${{ github.sha }}" \
+            --query "properties.provisioningState" -o tsv

@@ -18,17 +18,18 @@ def send_top_opportunities():
 
     cursor.execute("""
         SELECT
-            TITLE,
-            AGENCY,
-            FIT_SCORE,
-            RESPONSE_DEADLINE,
-            UI_LINK,
-            SET_ASIDE,
-            ESTIMATED_VALUE
-        FROM GOVCONTRACT.MARTS.MART_OPPORTUNITY_FEATURES
-        WHERE ACTIVE = TRUE
-          AND RESPONSE_DEADLINE >= CURRENT_DATE
-        ORDER BY FIT_SCORE DESC NULLS LAST
+            d.TITLE,
+            d.AGENCY_NAME,
+            d.FIT_SCORE,
+            d.RESPONSE_DEADLINE,
+            m.UI_LINK,
+            d.SET_ASIDE,
+            d.NAICS_MEDIAN_AWARD_AMOUNT
+        FROM GOVCONTRACT.AGENTS.AGENT_DECISIONS d
+        LEFT JOIN GOVCONTRACT.MARTS.MART_OPPORTUNITY_FEATURES m ON m.NOTICE_ID = d.NOTICE_ID
+        WHERE d.DECIDED_AT IS NOT NULL
+          AND d.RESPONSE_DEADLINE >= CURRENT_DATE
+        ORDER BY d.FIT_SCORE DESC NULLS LAST
         LIMIT 5
     """)
     rows = cursor.fetchall()
@@ -67,7 +68,7 @@ def send_top_opportunities():
           <th style="padding:8px;text-align:left;">Title</th>
           <th style="padding:8px;text-align:left;">Agency</th>
           <th style="padding:8px;">Score</th>
-          <th style="padding:8px;text-align:left;">Est. Value</th>
+          <th style="padding:8px;text-align:left;">NAICS Median Award</th>
           <th style="padding:8px;text-align:left;">Set-Aside</th>
           <th style="padding:8px;text-align:left;">Deadline</th>
         </tr>

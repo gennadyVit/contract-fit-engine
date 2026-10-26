@@ -17,14 +17,17 @@ default_args = {
     "owner": "govcontract",
     "retries": 1,
     "retry_delay": timedelta(minutes=5),
-    "email_on_failure": True,
+    "email_on_failure": False,  # no SMTP configured in the container
     "email": [os.getenv("DIGEST_EMAIL", "yezavit@yahoo.com")],
 }
 
 with DAG(
     dag_id="govcontract_daily_pipeline",
     description="Ingest → dbt → embed → score → digest",
-    schedule_interval="0 6 * * 1",  # Monday 6 AM UTC
+    # Triggered only by the GitHub "Weekly Airflow DAG Trigger" workflow. The metadata DB
+    # is recreated on every container start, so an Airflow schedule would launch an
+    # extra run each time the container starts.
+    schedule_interval=None,
     start_date=datetime(2026, 7, 1),
     catchup=False,
     default_args=default_args,
@@ -68,8 +71,9 @@ with DAG(
 
     def send_digest(**context):
         import sys
-        sys.path.insert(0, "/opt/airflow/govcontract")
-        from airflow.scripts.digest import send_top_opportunities
+        # Import from the folder directly: "airflow.scripts" would resolve to the Airflow package
+        sys.path.insert(0, "/opt/airflow/govcontract/airflow/scripts")
+        from digest import send_top_opportunities
         send_top_opportunities()
 
     task_ingest = PythonOperator(

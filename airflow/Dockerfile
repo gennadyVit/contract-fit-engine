@@ -31,6 +31,7 @@ RUN pip install --no-cache-dir \
     azure-keyvault-secrets==4.8.0 \
     openai>=1.50.0 \
     requests==2.32.3 \
-    python-dotenv==1.0.1
+    python-dotenv==1.0.1 \
+    numpy
 
 ENTRYPOINT ["/entrypoint.sh"]
