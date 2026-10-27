@@ -11,6 +11,9 @@ COPY ingestion/search_index.py ingestion/
 COPY ingestion/scoring.py ingestion/
 COPY ingestion/agent.py ingestion/
 COPY dashboard/app.py .
+COPY dashboard/pages/ pages/
+COPY dashboard/assets/ static/
+COPY dashboard/.streamlit/ .streamlit/
 
 ENV PYTHONPATH=/app/ingestion
 

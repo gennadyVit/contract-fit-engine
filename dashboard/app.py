@@ -1,6 +1,7 @@
 import os
 import sys
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 from dotenv import load_dotenv
 
@@ -12,6 +13,7 @@ st.set_page_config(
     page_icon="🟦",
     layout="wide",
     initial_sidebar_state="collapsed",
+    menu_items={},
 )
 
 # ── Global styles ─────────────────────────────────────────────────────────────
@@ -19,8 +21,10 @@ st.markdown("""
 <style>
   [data-testid="collapsedControl"] { display: none; }
   section[data-testid="stSidebar"] { display: none; }
+  .stMainBlockContainer, .block-container,
+  div[data-testid="stAppViewBlockContainer"] { padding-top: 0 !important; }
 
-  /* Primary buttons — match site blue */
+/* Primary buttons — match site blue */
   .stButton > button[kind="primary"] {
     background-color: #1d4ed8 !important;
     border-color: #1d4ed8 !important;
@@ -148,6 +152,13 @@ st.markdown("""
   .nav-logo { font-size: 20px; font-weight: 800; color: #0f172a; }
   .nav-logo span { color: #1d4ed8; }
 
+  /* Primary buttons keep their style */
+  button[data-testid="baseButton-primary"] {
+    background-color: #1d4ed8 !important;
+    border-color: #1d4ed8 !important;
+    color: white !important;
+  }
+
   .form-card {
     background: white;
     border: 1px solid #e2e8f0;
@@ -162,12 +173,34 @@ st.markdown("""
     padding: 24px 28px;
     margin-bottom: 24px;
   }
+
+
+  /* Hide Streamlit chrome */
+  header[data-testid="stHeader"] { display: none !important; }
+  #MainMenu { display: none !important; }
+  footer { display: none !important; }
+  section[data-testid="stSidebar"] { display: none !important; }
+  [data-testid="stSidebarCollapsedControl"] { display: none !important; }
+  [data-testid="collapsedControl"] { display: none !important; }
+
+  /* Chat input — clean black border, no Streamlit focus ring */
+  div[data-testid="stChatInput"] {
+    border: 1.5px solid #94a3b8 !important;
+    border-radius: 12px !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+  div[data-testid="stChatInput"] * {
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
 </style>
 """, unsafe_allow_html=True)
 
 # ── Session state ─────────────────────────────────────────────────────────────
 if "page" not in st.session_state:
-    st.session_state.page = "home"
+    st.session_state.page = "opportunities"
 if "results_df" not in st.session_state:
     st.session_state.results_df = None
 if "profile_used" not in st.session_state:
@@ -178,6 +211,8 @@ if "chat_profile" not in st.session_state:
     st.session_state.chat_profile = None
 if "chat_results" not in st.session_state:
     st.session_state.chat_results = None
+
+
 
 
 # ── Data helpers ──────────────────────────────────────────────────────────────
@@ -202,6 +237,22 @@ def load_scored_opportunities():
     df = pd.DataFrame(rows, columns=cols)
     df["FIT_SCORE"] = pd.to_numeric(df["FIT_SCORE"], errors="coerce")
     return df
+
+
+@st.cache_data(ttl=300)
+def count_active_opportunities() -> int:
+    """Scored opportunities still open for bids; shown in the hero stats."""
+    from snowflake_conn import get_connection
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("USE WAREHOUSE COMPUTE_WH")
+    cursor.execute("""
+        SELECT COUNT(*) FROM GOVCONTRACT.AGENTS.AGENT_DECISIONS
+        WHERE DECIDED_AT IS NOT NULL AND RESPONSE_DEADLINE >= CURRENT_DATE
+    """)
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count
 
 
 def score_custom_profile(profile: dict) -> pd.DataFrame:
@@ -295,100 +346,74 @@ def render_card(row):
 
 # ── Nav helper ────────────────────────────────────────────────────────────────
 def nav():
-    c1, c2, c3, c4 = st.columns([3, 1, 1, 1])
-    with c1:
-        st.markdown('<div class="nav-logo">Contract<span>Fit</span> Engine</div>', unsafe_allow_html=True)
-    with c2:
-        if st.button("Home", use_container_width=True):
-            st.session_state.page = "home"
-            st.rerun()
-    with c3:
-        if st.button("Find Bids", use_container_width=True):
-            st.session_state.page = "find"
-            st.rerun()
-    with c4:
-        if st.button("How It Works", use_container_width=True):
-            st.session_state.page = "tech"
-            st.rerun()
-    st.markdown("<hr style='margin:0 0 32px 0; border-color:#e2e8f0;'>", unsafe_allow_html=True)
-
-
-# ════════════════════════════════════════════════════════════════════════════
-# HOME PAGE
-# ════════════════════════════════════════════════════════════════════════════
-if st.session_state.page == "home":
-    nav()
-
     st.markdown("""
-    <div class="hero">
-      <div class="hero-tag">AI-Powered Federal Contract Intelligence</div>
-      <h1>Find federal bids<br>worth pursuing</h1>
-      <p>Contract Fit Engine scans thousands of publicly available federal contract opportunities from SAM.gov, scores each one against your company profile, and surfaces the bids most worth your time — so you focus on winning, not searching.</p>
-      <div class="stat-row">
-        <div class="stat"><div class="stat-num">1,387</div><div class="stat-label">Opportunities scored</div></div>
-        <div class="stat"><div class="stat-num">5</div><div class="stat-label">Scoring dimensions</div></div>
-        <div class="stat"><div class="stat-num">AI</div><div class="stat-label">Vector similarity matching</div></div>
-      </div>
+    <div onclick="window.location.href='/'" style="cursor:pointer;display:inline-block;margin-bottom:2px;">
+      <div style="font-size:19px;font-weight:800;color:#0f172a;letter-spacing:-0.3px;">Contract<span style="color:#1d4ed8;">Fit</span></div>
+      <div style="font-size:11px;color:#94a3b8;margin-top:2px;">AI-powered federal opportunity matching</div>
     </div>
     """, unsafe_allow_html=True)
-
-    if st.button("→ Find Opportunities for My Company", type="primary", use_container_width=False):
-        st.session_state.page = "find"
+    if st.button("", key="home_reset"):
+        st.session_state.chat_messages = []
+        st.session_state.chat_profile = None
+        st.session_state.chat_results = None
+        st.session_state.page = "opportunities"
         st.rerun()
+    st.markdown("""
+    <style>
+    .st-key-home_reset button {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        min-height: 0 !important;
+        height: 0 !important;
+    }
+    .st-key-home_reset button:hover,
+    .st-key-home_reset button:focus,
+    .st-key-home_reset button:active {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+    </style>
+    <hr style="margin:8px 0 24px 0;border:none;border-top:1px solid #f1f5f9;">
+    """, unsafe_allow_html=True)
 
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    st.markdown('<div class="section-label">What it does</div>', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Built for small businesses that compete for federal contracts</div>', unsafe_allow_html=True)
-    st.markdown('<div class="section-sub">Stop manually reviewing hundreds of SAM.gov listings. Enter your company profile once and get a ranked, prioritized list in seconds.</div>', unsafe_allow_html=True)
-
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        st.markdown("""
-        <div class="feature-card">
-          <div class="feature-icon">🎯</div>
-          <div class="feature-title">Company-Fit Scoring</div>
-          <div class="feature-desc">Every opportunity gets a 0–100 fit score based on your NAICS codes, past agency experience, contract size range, set-aside eligibility, and keywords — not just keyword matching.</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with c2:
-        st.markdown("""
-        <div class="feature-card">
-          <div class="feature-icon">🔍</div>
-          <div class="feature-title">Semantic Search</div>
-          <div class="feature-desc">Describe what your company does in plain English. Our vector search finds semantically similar opportunities even when the exact words don't match.</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with c3:
-        st.markdown("""
-        <div class="feature-card">
-          <div class="feature-icon">⚡</div>
-          <div class="feature-title">Clear Decisions</div>
-          <div class="feature-desc">Each opportunity is labeled PURSUE, WATCH, or NO BID — so your team knows immediately where to focus. Hard eligibility gates filter out bids you can't win.</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    if st.button("→ Get Started", type="primary"):
-        st.session_state.page = "find"
-        st.rerun()
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# FIND BIDS PAGE — Single-column ChatGPT-style
+# OPPORTUNITIES PAGE — merged home + chat
 # ════════════════════════════════════════════════════════════════════════════
-elif st.session_state.page == "find":
-    nav()
-    # Scroll to top of page on every rerun
-    st.markdown(
-        "<script>window.parent.document.querySelector('section.main').scrollTo(0, 0);</script>",
-        unsafe_allow_html=True,
-    )
+if st.session_state.page == "opportunities":
 
-    # ── Example cards (shown only before conversation starts) ─────────────────
+    # ── Hero (full before chat starts, compact after) ─────────────────────────
     if not st.session_state.chat_messages:
-        st.markdown('<div class="section-title" style="margin-bottom:8px;">Tell me about your company</div>', unsafe_allow_html=True)
-        st.markdown('<div style="color:#64748b;margin-bottom:32px;">Describe what your company does. The agent will ask a few follow-up questions, then score active federal opportunities against your profile.</div>', unsafe_allow_html=True)
+        active_count = f"{count_active_opportunities():,}"
+        st.markdown(f"""
+        <div style="display:flex;justify-content:space-between;align-items:center;
+                    padding:14px 0;margin-bottom:16px;">
+          <div onclick="window.location.href='/'" style="cursor:pointer;font-size:20px;font-weight:800;color:#0f172a;letter-spacing:-0.5px;">
+            Contract<span style="color:#1d4ed8;">Fit</span>
+          </div>
+          <a href="/how_it_works" target="_self" style="font-size:13px;color:#64748b;text-decoration:none;">How it works →</a>
+        </div>
+        <div class="hero" style="display:flex;gap:48px;align-items:center;">
+          <div style="flex:1;min-width:0;">
+            <div class="hero-tag">AI-Powered Federal Contract Intelligence</div>
+            <h1>Find federal contracts that fit your business</h1>
+            <p>Search and rank federal opportunities based on your capabilities. Describe your company and our AI agent scores {active_count} active SAM.gov opportunities against your profile.</p>
+            <div class="stat-row">
+              <div class="stat"><div class="stat-num">{active_count}</div><div class="stat-label">Active opportunities scored</div></div>
+              <div class="stat"><div class="stat-num">5</div><div class="stat-label">Scoring dimensions</div></div>
+              <div class="stat"><div class="stat-num">AI</div><div class="stat-label">Vector similarity matching</div></div>
+            </div>
+          </div>
+          <div style="flex:1;min-width:0;display:flex;align-items:center;justify-content:center;">
+            <!-- GIF, not MP4: Streamlit 1.35 serves .mp4 as text/plain with nosniff, so browsers won't play it -->
+            <img src="app/static/contractFit 1.gif" alt="ContractFit demo" style="width:100%;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.4);">
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
 
         st.markdown('<div style="font-size:12px;font-weight:600;color:#94a3b8;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;">Example companies</div>', unsafe_allow_html=True)
         examples = [
@@ -409,6 +434,16 @@ elif st.session_state.page == "find":
                     unsafe_allow_html=True,
                 )
         st.markdown("<br>", unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <div style="display:flex;justify-content:space-between;align-items:center;
+                    background:#0f172a;padding:16px 24px;border-radius:12px;margin-bottom:20px;">
+          <div onclick="window.location.href='/'" style="cursor:pointer;font-size:18px;font-weight:800;color:white;letter-spacing:-0.3px;">
+            Contract<span style="color:#60a5fa;">Fit</span>
+          </div>
+          <div style="font-size:13px;color:rgba(255,255,255,0.5);">Find contracts that fit your business</div>
+        </div>
+        """, unsafe_allow_html=True)
 
     # ── Chat history ──────────────────────────────────────────────────────────
     for msg in st.session_state.chat_messages:
@@ -510,122 +545,3 @@ elif st.session_state.page == "find":
 
 
 
-# ════════════════════════════════════════════════════════════════════════════
-# HOW IT WORKS / TECH PAGE — Option A layout
-# ════════════════════════════════════════════════════════════════════════════
-elif st.session_state.page == "tech":
-    nav()
-
-    st.markdown('<div class="section-label">Under the Hood</div>', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">How Contract Fit Engine works</div>', unsafe_allow_html=True)
-    st.markdown('<div class="section-sub">From raw SAM.gov data to a ranked, scored opportunity feed. Fully automated, weekly refresh.</div>', unsafe_allow_html=True)
-
-    # ── Stats bar ─────────────────────────────────────────────────────────────
-    s1, s2, s3 = st.columns(3)
-    s1.metric("Opportunities scored", "1,387")
-    s2.metric("Scoring dimensions", "5")
-    s3.metric("Pipeline refresh", "Weekly")
-
-    st.markdown("---")
-
-    # ── Two-column body ───────────────────────────────────────────────────────
-    c1, c2 = st.columns([1, 1])
-
-    with c1:
-        st.markdown("#### Pipeline")
-        st.markdown("""
-        <div class="step">
-          <div class="step-num">1</div>
-          <div class="step-content">
-            <h4>Ingest from SAM.gov</h4>
-            <p>Apache Airflow pulls active federal contract opportunities weekly from the SAM.gov public API. Raw data lands in Snowflake.</p>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-num">2</div>
-          <div class="step-content">
-            <h4>Model with dbt</h4>
-            <p>dbt transforms raw opportunity data into clean, analytics-ready models — opportunities, agencies, NAICS categories, and scoring features.</p>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-num">3</div>
-          <div class="step-content">
-            <h4>Embed with Azure OpenAI</h4>
-            <p>Each opportunity description is converted into a 1,536-dimension vector embedding using Azure OpenAI's text-embedding-3-small model.</p>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-num">4</div>
-          <div class="step-content">
-            <h4>Score for fit</h4>
-            <p>A conversational AI agent extracts your company profile from natural language, then a weighted scoring engine computes a FIT_SCORE (0–100) across 5 dimensions. As win/loss outcome data is captured from USASpending.gov, this rule-based engine will be replaced by an ML model trained on real award data.</p>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-num">5</div>
-          <div class="step-content">
-            <h4>Index for search</h4>
-            <p>Azure AI Search indexes all opportunities with their embeddings, enabling hybrid keyword + vector search across the full dataset.</p>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-num">6</div>
-          <div class="step-content">
-            <h4>Surface in dashboard</h4>
-            <p>Streamlit dashboard shows the ranked opportunity feed, semantic search, analytics, and AI-generated fit explanations.</p>
-          </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with c2:
-        st.markdown("#### Scoring Model")
-        st.markdown("""
-        | Component | Weight | What it measures |
-        |---|---|---|
-        | Capability similarity | **35%** | Cosine similarity between opportunity and company profile embeddings |
-        | Past performance | **25%** | NAICS code and past agency match |
-        | Contract size fit | **15%** | Value within company's comfortable range |
-        | Competition | **15%** | Small biz win rate + set-aside match |
-        | Strategic alignment | **10%** | Keyword overlap with company focus |
-        """)
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("**Hard gates** cap scores for eligibility mismatches:")
-        st.markdown("""
-        - Set-aside mismatch → max score **40**
-        - Clearance required → max score **50**
-        - Contract 10× above max → max score **65**
-        """)
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("**Decision thresholds**")
-        st.markdown("🟢 **PURSUE** — score ≥ 70  \n🟡 **WATCH** — score 50–69  \n🔴 **NO BID** — score < 50")
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("**Roadmap: ML-based scoring**")
-        st.markdown("Current rule-based weights will be replaced by an ML classifier trained on USASpending.gov award outcomes and user bid results (won/lost).")
-        st.markdown('<span class="tech-pill">XGBoost</span><span class="tech-pill">Feature store in Snowflake</span><span class="tech-pill">USASpending.gov</span>', unsafe_allow_html=True)
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown('[View full scoring methodology →](https://gennadyvit.github.io/contract-fit-engine/scoring-model.html)')
-
-    # ── Tech stack ────────────────────────────────────────────────────────────
-    st.markdown("---")
-    st.markdown("#### Tech Stack")
-
-    ts1, ts2, ts3 = st.columns(3)
-    with ts1:
-        st.markdown('<div class="tech-category">Data & Pipeline</div>', unsafe_allow_html=True)
-        st.markdown('<span class="tech-pill">Apache Airflow</span><span class="tech-pill">Snowflake</span><span class="tech-pill">dbt</span><span class="tech-pill">Python</span><span class="tech-pill">SAM.gov API</span>', unsafe_allow_html=True)
-    with ts2:
-        st.markdown('<div class="tech-category">AI & Search</div>', unsafe_allow_html=True)
-        st.markdown('<span class="tech-pill">Azure OpenAI GPT-4o</span><span class="tech-pill">text-embedding-3-small</span><span class="tech-pill">Azure AI Search</span><span class="tech-pill">RAG</span><span class="tech-pill">Function calling</span>', unsafe_allow_html=True)
-    with ts3:
-        st.markdown('<div class="tech-category">Infrastructure</div>', unsafe_allow_html=True)
-        st.markdown('<span class="tech-pill">Azure Container Apps</span><span class="tech-pill">Azure Container Registry</span><span class="tech-pill">Streamlit</span><span class="tech-pill">Docker</span>', unsafe_allow_html=True)
-
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    if st.button("→ Try It Now", type="primary"):
-        st.session_state.page = "find"
-        st.rerun()
