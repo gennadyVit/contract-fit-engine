@@ -262,7 +262,12 @@ def main():
             o.DESCRIPTION
         FROM GOVCONTRACT.AGENTS.AGENT_DECISIONS d
         LEFT JOIN GOVCONTRACT.MARTS.MART_OPPORTUNITY_FEATURES m ON m.NOTICE_ID = d.NOTICE_ID
-        LEFT JOIN GOVCONTRACT.RAW.STG_SAM_OPPORTUNITIES o ON o.NOTICE_ID = d.NOTICE_ID
+        -- RAW keeps every weekly load, so take the latest row per notice to avoid duplicates
+        LEFT JOIN (
+            SELECT NOTICE_ID, DESCRIPTION
+            FROM GOVCONTRACT.RAW.STG_SAM_OPPORTUNITIES
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY NOTICE_ID ORDER BY LOADED_AT DESC) = 1
+        ) o ON o.NOTICE_ID = d.NOTICE_ID
     """)
     rows = cursor.fetchall()
     cols = [c[0] for c in cursor.description]
@@ -290,15 +295,29 @@ def main():
         score, decision = compute_fit_score(opp, profile, profile_embedding)
         updates.append((score, decision, run_id, opp["NOTICE_ID"]))
 
+    # executemany on an UPDATE runs one statement per row (~1s each, 80+ min for ~4,800
+    # rows). Stage scores in a temp table with multi-row INSERTs, then one UPDATE.
     print(f"Writing scores to Snowflake...")
-    cursor.executemany("""
-        UPDATE GOVCONTRACT.AGENTS.AGENT_DECISIONS
-        SET FIT_SCORE = %s,
-            DECISION = %s,
-            AGENT_RUN_ID = %s,
+    cursor.execute("""
+        CREATE TEMPORARY TABLE TMP_SCORES (
+            FIT_SCORE FLOAT, DECISION VARCHAR, AGENT_RUN_ID VARCHAR, NOTICE_ID VARCHAR
+        )
+    """)
+    for i in range(0, len(updates), 1000):
+        cursor.executemany(
+            "INSERT INTO TMP_SCORES (FIT_SCORE, DECISION, AGENT_RUN_ID, NOTICE_ID) VALUES (%s, %s, %s, %s)",
+            updates[i:i + 1000],
+        )
+    cursor.execute("""
+        UPDATE GOVCONTRACT.AGENTS.AGENT_DECISIONS d
+        SET FIT_SCORE = t.FIT_SCORE,
+            DECISION = t.DECISION,
+            AGENT_RUN_ID = t.AGENT_RUN_ID,
             DECIDED_AT = CURRENT_TIMESTAMP()
-        WHERE NOTICE_ID = %s
-    """, updates)
+        FROM TMP_SCORES t
+        WHERE d.NOTICE_ID = t.NOTICE_ID
+    """)
+    print(f"Updated {cursor.rowcount} rows")
     conn.commit()
 
     pursue = sum(1 for _, d, _, _ in updates if d == "PURSUE")

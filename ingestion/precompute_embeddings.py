@@ -52,6 +52,12 @@ def main():
         print("All embeddings already computed.")
         return
 
+    # One UPDATE per row took ~1s each (41 min for ~2,500 rows). Stage the embeddings
+    # in a temp table with multi-row INSERTs, then apply them with a single UPDATE.
+    cursor.execute("""
+        CREATE TEMPORARY TABLE TMP_EMBEDDINGS (NOTICE_ID VARCHAR, EMBEDDING_JSON VARCHAR)
+    """)
+
     # Process in batches
     total = len(rows)
     processed = 0
@@ -68,19 +74,23 @@ def main():
             time.sleep(5)
             continue
 
-        # Update each row
-        for notice_id, embedding in zip(notice_ids, embeddings):
-            cursor.execute("""
-                UPDATE GOVCONTRACT.MARTS.MART_OPPORTUNITY_FEATURES
-                SET EMBEDDING = PARSE_JSON(%s)
-                WHERE NOTICE_ID = %s
-            """, (json.dumps(embedding), notice_id))
-
-        conn.commit()
+        # Kept per API batch: 20 embeddings (~30KB of JSON each) keep the INSERT text small
+        cursor.executemany(
+            "INSERT INTO TMP_EMBEDDINGS (NOTICE_ID, EMBEDDING_JSON) VALUES (%s, %s)",
+            [(nid, json.dumps(emb)) for nid, emb in zip(notice_ids, embeddings)],
+        )
         processed += len(batch)
         print(f"Processed {processed}/{total}")
         time.sleep(0.5)  # rate limit buffer
 
+    cursor.execute("""
+        UPDATE GOVCONTRACT.MARTS.MART_OPPORTUNITY_FEATURES m
+        SET EMBEDDING = PARSE_JSON(t.EMBEDDING_JSON)
+        FROM TMP_EMBEDDINGS t
+        WHERE m.NOTICE_ID = t.NOTICE_ID
+    """)
+    print(f"Updated {cursor.rowcount} rows")
+    conn.commit()
     conn.close()
     print("Done.")
 
