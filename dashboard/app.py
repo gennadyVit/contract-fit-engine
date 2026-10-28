@@ -409,8 +409,8 @@ if st.session_state.page == "opportunities":
             </div>
           </div>
           <div style="flex:1;min-width:0;display:flex;align-items:center;justify-content:center;">
-            <!-- GIF, not MP4: Streamlit 1.35 serves .mp4 as text/plain with nosniff, so browsers won't play it -->
-            <img src="app/static/contractFit 1.gif" alt="ContractFit demo" style="width:100%;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.4);">
+            <!-- Animated WebP, not MP4: Streamlit 1.35 serves .mp4 as text/plain with nosniff, so browsers won't play it -->
+            <img src="app/static/contractFit 1.webp" alt="ContractFit demo" style="width:100%;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.4);">
           </div>
         </div>
         """, unsafe_allow_html=True)
