@@ -196,35 +196,51 @@ st.markdown("""
     outline: none !important;
   }
 
+  /* ── Hero grid — desktop ───────────────────────────────────────────────── */
+  .hero-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto auto auto;
+    gap: 0 48px;
+    align-items: start;
+  }
+  .hero-tag-el  { grid-column: 1; grid-row: 1; }
+  .hero-img-el  { grid-column: 2; grid-row: 1 / 5; display:flex; align-items:center; }
+  .hero-h1-el   { grid-column: 1; grid-row: 2; margin: 0 0 16px 0; }
+  .hero-p-el    { grid-column: 1; grid-row: 3; margin: 0; }
+  .hero-stats-el{ grid-column: 1; grid-row: 4; }
+
   /* ── Mobile ────────────────────────────────────────────────────────────── */
   @media (max-width: 768px) {
     .hero {
-      padding: 32px 20px !important;
-      margin-bottom: 24px !important;
+      padding: 24px 16px !important;
+      margin-bottom: 20px !important;
     }
-    .hero h1 {
-      font-size: 26px !important;
-    }
-    .hero p {
-      font-size: 15px !important;
-    }
-    /* Stack hero columns vertically */
-    .hero > div[style*="display:flex"] ,
-    div.hero[style*="display:flex"] {
+    .hero-grid {
+      display: flex !important;
       flex-direction: column !important;
+      gap: 0 !important;
     }
-    .hero-video-col {
-      display: none !important;
+    /* Top row: tag + image side by side */
+    .hero-tag-el {
+      order: 1;
+      display: flex !important;
+      align-items: center !important;
     }
-    .stat-row {
-      gap: 20px !important;
-      flex-wrap: wrap !important;
-      margin-top: 24px !important;
+    .hero-img-el {
+      order: 1;
+      width: 48% !important;
+      float: right !important;
+      margin-left: 12px !important;
+      margin-bottom: 12px !important;
     }
-    .stat-num {
-      font-size: 24px !important;
-    }
-    /* Example cards — horizontal scroll instead of 4 cramped columns */
+    /* Reorder remaining elements */
+    .hero-tag-el  { order: 1; margin-bottom: 8px; }
+    .hero-h1-el   { order: 3; font-size: 24px !important; margin: 12px 0 12px 0 !important; clear: both; }
+    .hero-p-el    { order: 4; font-size: 14px !important; }
+    .hero-stats-el{ order: 5; margin-top: 20px !important; gap: 16px !important; flex-wrap: wrap !important; }
+    .stat-num     { font-size: 24px !important; }
+    /* Example cards — horizontal scroll */
     .example-cards-row {
       display: flex !important;
       overflow-x: auto !important;
@@ -440,20 +456,19 @@ if st.session_state.page == "opportunities":
           </div>
           <a href="/how_it_works" target="_self" style="font-size:13px;color:#64748b;text-decoration:none;">How it works →</a>
         </div>
-        <div class="hero" style="display:flex;gap:48px;align-items:center;flex-wrap:wrap;">
-          <div style="flex:1;min-width:280px;">
-            <div class="hero-tag">AI-Powered Federal Contract Intelligence</div>
-            <h1>Find federal contracts that fit your business</h1>
-            <p>Government contracting, made accessible. Discover how your skills, experience and capabilities match government demand and get a personalized pathway to winning government contracts.</p>
-            <div class="stat-row">
+        <div class="hero">
+          <div class="hero-grid">
+            <div class="hero-tag hero-tag-el">AI-Powered Federal Contract Intelligence</div>
+            <div class="hero-img-el">
+              <img src="app/static/contractFit 1.webp" alt="ContractFit demo" style="width:100%;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.4);">
+            </div>
+            <h1 class="hero-h1-el">Find federal contracts that fit your business</h1>
+            <p class="hero-p-el">Government contracting, made accessible. Discover how your skills, experience and capabilities match government demand and get a personalized pathway to winning government contracts.</p>
+            <div class="stat-row hero-stats-el">
               <div class="stat"><div class="stat-num">{active_count}</div><div class="stat-label">Active opportunities scored</div></div>
               <div class="stat"><div class="stat-num">5</div><div class="stat-label">Scoring dimensions</div></div>
               <div class="stat"><div class="stat-num">AI</div><div class="stat-label">Vector similarity matching</div></div>
             </div>
-          </div>
-          <div class="hero-video-col" style="flex:1;min-width:280px;display:flex;align-items:center;justify-content:center;">
-            <!-- Animated WebP, not MP4: Streamlit 1.35 serves .mp4 as text/plain with nosniff, so browsers won't play it -->
-            <img src="app/static/contractFit 1.webp" alt="ContractFit demo" style="width:100%;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.4);">
           </div>
         </div>
         """, unsafe_allow_html=True)
