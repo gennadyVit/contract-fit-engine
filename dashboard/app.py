@@ -195,6 +195,49 @@ st.markdown("""
     box-shadow: none !important;
     outline: none !important;
   }
+
+  /* ── Mobile ────────────────────────────────────────────────────────────── */
+  @media (max-width: 768px) {
+    .hero {
+      padding: 32px 20px !important;
+      margin-bottom: 24px !important;
+    }
+    .hero h1 {
+      font-size: 26px !important;
+    }
+    .hero p {
+      font-size: 15px !important;
+    }
+    /* Stack hero columns vertically */
+    .hero > div[style*="display:flex"] ,
+    div.hero[style*="display:flex"] {
+      flex-direction: column !important;
+    }
+    .hero-video-col {
+      display: none !important;
+    }
+    .stat-row {
+      gap: 20px !important;
+      flex-wrap: wrap !important;
+      margin-top: 24px !important;
+    }
+    .stat-num {
+      font-size: 24px !important;
+    }
+    /* Example cards — horizontal scroll instead of 4 cramped columns */
+    .example-cards-row {
+      display: flex !important;
+      overflow-x: auto !important;
+      gap: 12px !important;
+      padding-bottom: 8px !important;
+      scrollbar-width: none !important;
+    }
+    .example-cards-row::-webkit-scrollbar { display: none !important; }
+    .example-card {
+      min-width: 220px !important;
+      flex-shrink: 0 !important;
+    }
+  }
 </style>
 """, unsafe_allow_html=True)
 
@@ -397,18 +440,18 @@ if st.session_state.page == "opportunities":
           </div>
           <a href="/how_it_works" target="_self" style="font-size:13px;color:#64748b;text-decoration:none;">How it works →</a>
         </div>
-        <div class="hero" style="display:flex;gap:48px;align-items:center;">
-          <div style="flex:1;min-width:0;">
+        <div class="hero" style="display:flex;gap:48px;align-items:center;flex-wrap:wrap;">
+          <div style="flex:1;min-width:280px;">
             <div class="hero-tag">AI-Powered Federal Contract Intelligence</div>
             <h1>Find federal contracts that fit your business</h1>
-            <p>Search and rank federal opportunities based on your capabilities. Describe your company and our AI agent scores {active_count} active SAM.gov opportunities against your profile.</p>
+            <p>Government contracting, made accessible. Discover how your skills, experience and capabilities match government demand and get a personalized pathway to winning government contracts.</p>
             <div class="stat-row">
               <div class="stat"><div class="stat-num">{active_count}</div><div class="stat-label">Active opportunities scored</div></div>
               <div class="stat"><div class="stat-num">5</div><div class="stat-label">Scoring dimensions</div></div>
               <div class="stat"><div class="stat-num">AI</div><div class="stat-label">Vector similarity matching</div></div>
             </div>
           </div>
-          <div style="flex:1;min-width:0;display:flex;align-items:center;justify-content:center;">
+          <div class="hero-video-col" style="flex:1;min-width:280px;display:flex;align-items:center;justify-content:center;">
             <!-- Animated WebP, not MP4: Streamlit 1.35 serves .mp4 as text/plain with nosniff, so browsers won't play it -->
             <img src="app/static/contractFit 1.webp" alt="ContractFit demo" style="width:100%;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.4);">
           </div>
@@ -422,17 +465,18 @@ if st.session_state.page == "opportunities":
             ("🔒 Cybersecurity", "8(a) · 541512 · $500K–$50M", "8(a) cybersecurity firm with SECRET clearance offering network security and PKI support."),
             ("🏗️ Construction", "SBA · 236220 · $500K–$15M", "SBA general contractor focused on federal facility renovation in the Southeast."),
         ]
-        c1, c2, c3, c4 = st.columns(4, gap="small")
-        for col, (title, meta, desc) in zip([c1, c2, c3, c4], examples):
-            with col:
-                st.markdown(
-                    f"""<div style="border:1px solid #e2e8f0;border-radius:10px;padding:16px;background:#f8fafc;height:140px;">
-                    <div style="font-weight:600;font-size:13px;margin-bottom:4px;">{title}</div>
-                    <div style="font-size:11px;color:#64748b;margin-bottom:8px;">{meta}</div>
-                    <div style="font-size:12px;color:#374151;line-height:1.4;">{desc}</div>
-                    </div>""",
-                    unsafe_allow_html=True,
-                )
+        cards_html = "".join([
+            f"""<div class="example-card" style="border:1px solid #e2e8f0;border-radius:10px;padding:16px;background:#f8fafc;min-height:130px;">
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px;">{t}</div>
+            <div style="font-size:11px;color:#64748b;margin-bottom:8px;">{m}</div>
+            <div style="font-size:12px;color:#374151;line-height:1.4;">{d}</div>
+            </div>"""
+            for t, m, d in examples
+        ])
+        st.markdown(
+            f'<div class="example-cards-row" style="display:flex;gap:12px;">{cards_html}</div>',
+            unsafe_allow_html=True,
+        )
         st.markdown("<br>", unsafe_allow_html=True)
     else:
         st.markdown("""
