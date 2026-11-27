@@ -405,7 +405,7 @@ def render_card(row):
 def nav():
     st.markdown("""
     <div onclick="window.location.href='/'" style="cursor:pointer;display:inline-block;margin-bottom:2px;">
-      <div style="font-size:19px;font-weight:800;color:#0f172a;letter-spacing:-0.3px;">Contract<span style="color:#1d4ed8;">Fit</span></div>
+      <div style="font-size:19px;font-weight:800;color:#1d4ed8;letter-spacing:-0.3px;">Contract<span style="color:#1d4ed8;">Fit</span></div>
       <div style="font-size:11px;color:#94a3b8;margin-top:2px;">AI-powered federal opportunity matching</div>
     </div>
     """, unsafe_allow_html=True)
@@ -449,7 +449,7 @@ if st.session_state.page == "opportunities":
         st.markdown(f"""
         <div style="display:flex;justify-content:space-between;align-items:center;
                     padding:14px 0;margin-bottom:16px;">
-          <div onclick="window.location.href='/'" style="cursor:pointer;font-size:20px;font-weight:800;color:#0f172a;letter-spacing:-0.5px;">
+          <div onclick="window.location.href='/'" style="cursor:pointer;font-size:20px;font-weight:800;color:#1d4ed8;letter-spacing:-0.5px;">
             Contract<span style="color:#1d4ed8;">Fit</span>
           </div>
           <a href="/how_it_works" target="_self" style="font-size:13px;color:#64748b;text-decoration:none;">How it works →</a>
