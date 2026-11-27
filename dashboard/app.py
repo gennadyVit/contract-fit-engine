@@ -204,9 +204,10 @@ st.markdown("""
     gap: 0 48px;
     align-items: start;
   }
-  .hero-tag-el  { grid-column: 1; grid-row: 1; }
+  .hero-mobile-row1 { grid-column: 1; grid-row: 1 / 3; display: flex; flex-direction: column; gap: 16px; }
+  .hero-tag-el  { }
+  .hero-h1-el   { margin: 0 0 16px 0; }
   .hero-img-el  { grid-column: 2; grid-row: 1 / 5; display:flex; align-items:center; }
-  .hero-h1-el   { grid-column: 1; grid-row: 2; margin: 0 0 16px 0; }
   .hero-p-el    { grid-column: 1; grid-row: 3; margin: 0; }
   .hero-stats-el{ grid-column: 1; grid-row: 4; }
 
@@ -216,28 +217,25 @@ st.markdown("""
       padding: 24px 16px !important;
       margin-bottom: 20px !important;
     }
+    /* Row 1: tag + headline side by side */
     .hero-grid {
       display: flex !important;
       flex-direction: column !important;
       gap: 0 !important;
     }
-    /* Top row: tag + image side by side */
-    .hero-tag-el {
-      order: 1;
+    .hero-mobile-row1 {
       display: flex !important;
       align-items: center !important;
+      gap: 12px !important;
+      margin-bottom: 16px !important;
     }
-    .hero-img-el {
-      order: 1;
-      width: 48% !important;
-      float: right !important;
-      margin-left: 12px !important;
-      margin-bottom: 12px !important;
-    }
-    /* Reorder remaining elements */
-    .hero-tag-el  { order: 1; margin-bottom: 8px; }
-    .hero-h1-el   { order: 3; font-size: 24px !important; margin: 12px 0 12px 0 !important; clear: both; }
-    .hero-p-el    { order: 4; font-size: 14px !important; }
+    .hero-tag-el  { order: 1; flex-shrink: 0; }
+    .hero-h1-el   { order: 2; font-size: 20px !important; margin: 0 !important; line-height: 1.2 !important; }
+    /* Row 2: image full width */
+    .hero-img-el  { order: 3; width: 100% !important; margin: 16px 0 !important; }
+    .hero-img-el img { width: 100% !important; }
+    /* Row 3: body text */
+    .hero-p-el    { order: 4; font-size: 14px !important; margin: 0 !important; }
     .hero-stats-el{ order: 5; margin-top: 20px !important; gap: 16px !important; flex-wrap: wrap !important; }
     .stat-num     { font-size: 24px !important; }
     /* Example cards — horizontal scroll */
@@ -458,11 +456,13 @@ if st.session_state.page == "opportunities":
         </div>
         <div class="hero">
           <div class="hero-grid">
-            <div class="hero-tag hero-tag-el">AI-Powered Federal Contract Intelligence</div>
+            <div class="hero-mobile-row1">
+              <div class="hero-tag hero-tag-el">AI-Powered Federal Contract Intelligence</div>
+              <h1 class="hero-h1-el">Find federal contracts that fit your business</h1>
+            </div>
             <div class="hero-img-el">
               <img src="app/static/contractFit 1.webp" alt="ContractFit demo" style="width:100%;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.4);">
             </div>
-            <h1 class="hero-h1-el">Find federal contracts that fit your business</h1>
             <p class="hero-p-el">Government contracting, made accessible. Discover how your skills, experience and capabilities match government demand and get a personalized pathway to winning government contracts.</p>
             <div class="stat-row hero-stats-el">
               <div class="stat"><div class="stat-num">{active_count}</div><div class="stat-label">Active opportunities scored</div></div>
